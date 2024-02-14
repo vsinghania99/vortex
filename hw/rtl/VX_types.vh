@@ -184,4 +184,18 @@
 `define VX_CSR_NUM_WARPS                12'hFC1
 `define VX_CSR_NUM_CORES                12'hFC2
 
+`define VX_MAT_MUL_0                    12'hB0C
+`define VX_MAT_MUL_1                    12'hB8C
+`define VX_MAT_MUL_2                    12'hB0D
+`define VX_MAT_MUL_3                    12'hB0E
+`define VX_MAT_MUL_4                    12'hB8E
+`define VX_MAT_MUL_5                    12'hB0F
+
+`define VX_MAT_MUL_6                    12'hB8F
+`define VX_MAT_MUL_7                    12'hB10
+`define VX_MAT_MUL_8                    12'hB90
+`define VX_MAT_MUL_9                    12'hB11
+`define VX_MAT_MUL_10                   12'hB91
+`define VX_MAT_MUL_11                   12'hB12
+
 `endif // VX_TYPES_VH
