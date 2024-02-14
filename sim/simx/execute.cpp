@@ -2294,7 +2294,137 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     default:
       std::abort();
     }
-  } break;    
+  } break;  
+  case TCU: { //Tensor core
+    //TODO - change this
+    int SIZE = 2;
+
+    //load memory addresses
+    uint64_t csr_addr[SIZE*SIZE*3] = {VX_MAT_MUL_0,VX_MAT_MUL_1, VX_MAT_MUL_2, VX_MAT_MUL_3, VX_MAT_MUL_4, VX_MAT_MUL_5, VX_MAT_MUL_6, VX_MAT_MUL_7, VX_MAT_MUL_8, VX_MAT_MUL_9, VX_MAT_MUL_10, VX_MAT_MUL_11};
+
+    switch (func3) {
+      case 0: 
+      { //Matrix Load  
+        DP(4, "TCU LOAD");
+        uint32_t mem_bytes = 1 << (2 & 0x3);
+        //TODO - make these threads do different work
+        for (uint32_t t = 0; t < num_threads; ++t) 
+        {
+          if (!tmask_.test(t))
+            continue;
+          uint32_t mem_addr_arr[SIZE][SIZE];
+          uint32_t base_addr = rsdata[t][0].i ;
+          //Debug
+          //printf("Base address = %x\n", base_addr);
+          //get the memory addresses
+          for(int i = 0; i < SIZE; i++){
+            for(int j = 0; j < SIZE; j++){
+              mem_addr_arr[i][j] = base_addr + ((SIZE*i) + j)*4;
+            }
+          }
+
+          //Load data from DRAM->CSRs
+          for(int i = 0; i < SIZE; i++){
+            for(int j = 0; j < SIZE; j++){
+              Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
+              core_->dcache_read(temp_ref, mem_addr_arr[i][j], mem_bytes);
+
+              core_->set_csr(csr_addr[(immsrc*SIZE*SIZE)+(i*SIZE + j)], *temp_ref, t, warp_id_);
+              //Debug
+              //DP(4, "TCU LOAD MEM: ADDRESS=0x" << std::hex << mem_addr_arr[i][j] << ", DATA=0x" << mem_data_arr[i][j]);
+            }
+          }
+          DP(4, "TCU LOAD MEM: ADDRESS=0x" << std::hex << mem_addr << ", DATA=0x" << mem_data);
+        }
+      } break;
+      case 1: { 
+        DP(4, "TCU STORE");
+        uint32_t mem_bytes = 1 << (2 & 0x3);
+        //Matrix Store
+        //Get address to which need to store
+        for (uint32_t t = 0; t < num_threads; ++t) 
+        {
+          if (!tmask_.test(t))
+            continue;
+          uint32_t base_addr = rsdata[t][0].i;
+          uint32_t mem_addr_arr[SIZE][SIZE];
+        
+          //memory addr array
+          for(int i = 0; i < SIZE; i++){
+            for(int j = 0; j < SIZE; j++){
+              mem_addr_arr[i][j] = base_addr + ((SIZE*i) + j)*4;
+            }
+          }
+
+          //Write from CSRs to DRAM
+          for(int i = 0; i < SIZE; i++){
+            for(int j = 0; j < SIZE; j++){
+              Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
+              *temp_ref = core_->get_csr(csr_addr[(SIZE*SIZE*2) + (i*SIZE+j)], t, warp_id_);
+              core_->dcache_write(temp_ref, mem_addr_arr[i][j], mem_bytes);  
+              DP(4, "TCU STORE MEM: ADDRESS=0x" << std::hex << mem_addr_arr[i][j] << ", DATA=0x" << mem_data_arr[i][j]);
+
+            }
+          }
+
+          DP(4, "STORE MEM: ADDRESS=0x" << std::hex << mem_addr << ", DATA=0x" << mem_data);
+        }
+      } break;
+      case 2: { //Matrix Multiply
+        DP(4, "TCU MULTIPLY MAT");
+        
+        for (uint32_t t = 0; t < num_threads; ++t) 
+        {
+          if (!tmask_.test(t))
+            continue;
+          
+          //TODO - Change to scratchpad
+          uint32_t temp[SIZE*SIZE*3];
+
+          //Moving data into scratchpad
+          for (int i = 0; i < SIZE; i++) 
+          { //ROW-1
+            for (int j = 0; j < SIZE; j++) 
+            { //COL-2
+              temp[i*SIZE+j] = core_->get_csr(csr_addr[(i*SIZE+j)], t, warp_id_);
+              printf("Value of A in MM = %d\n", temp[i*SIZE+j]);
+              printf("Value of A in CSR = %d at %d\n", core_->get_csr(csr_addr[(i*SIZE+j)],t, warp_id_), i*SIZE+j) ;
+
+
+              temp[(SIZE*SIZE)+(i*SIZE+j)] = core_->get_csr(csr_addr[(SIZE*SIZE)+(i*SIZE+j)], t, warp_id_);
+              printf("Value of b in MM = %d\n", temp[(SIZE*SIZE)+(i*SIZE+j)]);
+              printf("Value of b in CSR = %d at %d\n", core_->get_csr(csr_addr[(SIZE*SIZE)+(i*SIZE+j)],t, warp_id_), SIZE*SIZE+i*SIZE+j);
+
+            }
+          }
+
+          //TODO - change to systolic array implementation
+          for (int i = 0; i < SIZE; i++) { //ROW-1
+            for (int j = 0; j < SIZE; j++) { //COL-2
+              int sum = 0;
+              for (int k = 0; k < SIZE; k++){ //COL-1
+                sum = sum + temp[i * SIZE + k] *temp[SIZE*SIZE + (k * SIZE + j)];
+              }
+              temp[(SIZE*SIZE*2) + (i * SIZE + j)] = sum; //[i * col2 + j] = sum
+            }
+          }
+
+          //Moving data from scratchpad
+          for (int i = 0; i < SIZE; i++) 
+          { //ROW-1
+            for (int j = 0; j < SIZE; j++) 
+            { //COL-2
+              core_->set_csr(csr_addr[(SIZE*SIZE*2)+ (i*SIZE+j)],temp[(SIZE*SIZE*2)+ (i*SIZE+j)], t, warp_id_);
+            }
+          }
+        }
+      }break;
+      default:
+        std::abort();
+    }
+  } break;
+
+
   default:
     std::abort();
   }
