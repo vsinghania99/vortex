@@ -3,6 +3,7 @@
 
 int main()
 {
+	//Printing hello
 	vx_printf("Hello World!\n");
 
 	return 0;
