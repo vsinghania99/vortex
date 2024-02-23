@@ -32,6 +32,7 @@ module VX_sfu_unit import VX_gpu_pkg::*; #(
 `ifdef EXT_F_ENABLE
     VX_fpu_to_csr_if.slave  fpu_to_csr_if [`NUM_FPU_BLOCKS],
 `endif
+    VX_tcu_to_csr_if.slave  tcu_to_csr_if [`NUM_FPU_BLOCKS],
 
     // Outputs
     VX_commit_if.master     commit_if [`ISSUE_WIDTH],
@@ -131,7 +132,8 @@ module VX_sfu_unit import VX_gpu_pkg::*; #(
     `ifdef EXT_F_ENABLE  
         .fpu_to_csr_if  (fpu_to_csr_if),
     `endif
-
+        .tcu_to_csr_if  (tcu_to_csr_if),
+        
         .sched_csr_if   (sched_csr_if),
         .commit_csr_if  (commit_csr_if),
         .commit_if      (csr_commit_if)

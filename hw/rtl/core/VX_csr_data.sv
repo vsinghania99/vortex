@@ -40,6 +40,7 @@ import VX_fpu_pkg::*;
 `ifdef EXT_F_ENABLE
     VX_fpu_to_csr_if.slave              fpu_to_csr_if [`NUM_FPU_BLOCKS],
 `endif
+    VX_tcu_to_csr_if.slave              tcu_to_csr_if [`NUM_FPU_BLOCKS],
 
     input wire [`PERF_CTR_BITS-1:0]     cycles,
     input wire [`NUM_WARPS-1:0]         active_warps,
@@ -106,10 +107,67 @@ import VX_fpu_pkg::*;
     end
 `endif
 
+    //TENSOR CORE
+    //TODO - fix this 
+    reg [31:0]tcsr[12];
+    reg [31:0]tcsr_n[12];
+
+    wire [`NUM_FPU_BLOCKS-1:0]           tcu_write_enable;
+    for (genvar i = 0; i < `NUM_FPU_BLOCKS; ++i) 
+    begin
+        assign tcu_write_enable[i]  = tcu_to_csr_if[i].write_enable;
+        assign tcu_read_enable[i]   = tcu_to_csr_if[i].read_enable;
+    end
+    always @(*) 
+    begin
+        fcsr_n = fcsr;
+        generate
+            for (genvar i = 0; i < `NUM_FPU_BLOCKS; i++)
+            begin
+                if (tcu_write_enable[i])
+                begin
+                    case(tcu_to_csr_if[i].write_addr) 
+                        begin
+                            `VX_MAT_MUL_8     : tcsr_n[8]  = write_data; 
+	                        `VX_MAT_MUL_9     : tcsr_n[9]  = write_data; 
+	                        `VX_MAT_MUL_10    : tcsr_n[10] = write_data; 
+	                        `VX_MAT_MUL_11    : tcsr_n[11] = write_data;  
+                        end
+                    endcase
+                end
+            
+                if (tcu_read_enable[i]) 
+                begin
+                    case(tcu_to_csr_if[i].read_addr) 
+                        begin
+                            `VX_MAT_MUL_0     :	tcu_to_csr_if[i].read_data = tcsr[0]	;	 
+                            `VX_MAT_MUL_1     :	tcu_to_csr_if[i].read_data = tcsr[1]	;	
+                            `VX_MAT_MUL_2     :	tcu_to_csr_if[i].read_data = tcsr[2]	;	
+                            `VX_MAT_MUL_3     :	tcu_to_csr_if[i].read_data = tcsr[3]	;		 
+                            `VX_MAT_MUL_4     : tcu_to_csr_if[i].read_data = tcsr[4]	;	
+                            `VX_MAT_MUL_5     : tcu_to_csr_if[i].read_data = tcsr[5]	;	 
+                            `VX_MAT_MUL_6     : tcu_to_csr_if[i].read_data = tcsr[6]	;	
+                            `VX_MAT_MUL_7     : tcu_to_csr_if[i].read_data = tcsr[7]	;	
+                        end
+                    endcase
+                end
+            end
+        endgenerate
+    end
+
+    always @(posedge clk) begin
+        if (reset) begin
+            tcsr <= '0;
+        end else begin
+            tcsr <= tcsr_n;
+        end
+    end
+
+
     always @(posedge clk) begin
         if (write_enable) begin
-            case (write_addr)
-            `ifdef EXT_F_ENABLE
+            case (write_addr)   
+            `ifdef EXT_F_ENABLE 
                 `VX_CSR_FFLAGS,
                 `VX_CSR_FRM,
                 `VX_CSR_FCSR,
@@ -136,6 +194,9 @@ import VX_fpu_pkg::*;
     reg [31:0] read_data_ro_r;
     reg [31:0] read_data_rw_r;
     reg read_addr_valid_r;
+
+    reg [31:0] tcsr[12]; //TODO: creating 12 CSRs for A,B,C for 32 bits register array
+    //reg [`NUM_WARPS-1:0][`INST_FRM_BITS+`FP_FLAGS_BITS-1:0] fcsr, fcsr_n;
 
     always @(*) begin
         read_data_ro_r    = '0;
@@ -164,7 +225,6 @@ import VX_fpu_pkg::*;
             `VX_CSR_MPM_RESERVED_H : read_data_ro_r = 'x;  
             `VX_CSR_MINSTRET   : read_data_ro_r = 32'(commit_csr_if.instret[31:0]);
             `VX_CSR_MINSTRET_H : read_data_ro_r = 32'(commit_csr_if.instret[`PERF_CTR_BITS-1:32]);       
-            
             `VX_CSR_SATP,
             `VX_CSR_MSTATUS,
             `VX_CSR_MNSTATUS,
