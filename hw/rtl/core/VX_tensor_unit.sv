@@ -105,31 +105,31 @@ module VX_tensor_unit #(
                         begin
                             index_ctr = 2'b0;
                             tc_next_state = 2'b2;
-                            tensor_load_done = 1'b1;
+                            tensor_load_done_reg = 1'b1;
                         end
                     end
                 2'b2 : //multiply the matrices (dummy for now)
                     begin 
                         if (index_ctr == 2'b0)
-                            tensor_load_done = 1'b0;
+                            tensor_load_done_reg = 1'b0;
                         if (index_ctr == 2'b3)
                         begin
                             index_ctr = 2'b0;
                             tc_next_state = 2'b3;
-                            tensor_execute_done = 1'b1;
+                            tensor_execute_done_reg = 1'b1;
                         end
                         tcore_c[index_ctr] = tcore_a[index_ctr];
                     end
                 2'b3 : //transfer contents from scratchpad to CSRs
                     begin 
                         if (index_ctr == 2'b0)
-                            tensor_execute_done = 1'b0;
-                            tensor_store_start = 1'b1;
+                            tensor_execute_done_reg = 1'b0;
+                            tensor_store_start_reg = 1'b1;
                         else
-                            tensor_store_start = 1'b0;
+                            tensor_store_start_reg = 1'b0;
                         if (index_ctr == 2'b3)
                         begin
-                            tensor_store_done = 1'b1;
+                            tensor_store_done_reg = 1'b1;
                             tc_next_state = 2'b0;
                             index_ctr = 2'b0;
                         end

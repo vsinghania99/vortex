@@ -41,6 +41,8 @@ import VX_fpu_pkg::*;
     VX_fpu_to_csr_if.slave              fpu_to_csr_if [`NUM_FPU_BLOCKS],
 `endif
     VX_tcu_to_csr_if.slave              tcu_to_csr_if [`NUM_FPU_BLOCKS],
+    VX_lsu_to_csr_if.slave              lsu_to_csr_if [`NUM_FPU_BLOCKS],
+
 
     input wire [`PERF_CTR_BITS-1:0]     cycles,
     input wire [`NUM_WARPS-1:0]         active_warps,
@@ -120,7 +122,7 @@ import VX_fpu_pkg::*;
     end
     always @(*) 
     begin
-        fcsr_n = fcsr;
+        tcsr_n = tcsr;
         generate
             for (genvar i = 0; i < `NUM_FPU_BLOCKS; i++)
             begin
@@ -162,6 +164,50 @@ import VX_fpu_pkg::*;
             tcsr <= tcsr_n;
         end
     end
+
+    //LSU to CSR logic
+    //TODO:
+    // Check NUM_LANES and NUM_THREADS. 
+    // Does the CSR unit have lanes/work on thread basis? We may be fixing LANES and BLOCK hierarchy. 
+
+    // LOAD, STORE TO CSR
+    wire [`NUM_FPU_BLOCKS-1:0]           lsu_write_enable;
+    wire [`NUM_FPU_BLOCKS-1:0]           lsu_read_enable;
+
+    for (genvar i = 0; i < `NUM_FPU_BLOCKS; i++) begin
+        assign lsu_write_enable[i]  = lsu_to_csr_if[i].write_enable;
+        assign lsu_read_enable[i]   = lsu_to_csr_if[i].read_enable;
+    end
+    reg [1:0] state;
+    always @(*)  
+    begin
+        if (~reset) begin
+            //Reset logic
+        end
+        else begin
+            for (genvar i = 0; i < `NUM_FPU_BLOCKS; i++) begin   
+                if(lsu_write_enable[i]) begin
+                    for (genvar j = 0; j < `NUM_THREADS; j++) begin
+                         //Write to CSR
+                         case(lsu_to_csr_if[i].write_addr) begin
+                            VX_MAT_MUL_8: tcsr_n[8+j]  = lsu_to_csr_if[i].write_data[j];
+                         end
+                    end
+                end
+                if(lsu_read_enable[i]) begin
+                    for (genvar j = 0; j < `NUM_THREADS; j++) begin
+                        //Read from CSR
+                        case(lsu_to_csr_if[i].read_addr) begin
+                            `VX_MAT_MUL_0: lsu_to_csr_if[i].read_data[j] = tcsr[j];
+                            `VX_MAT_MUL_4: lsu_to_csr_if[i].read_data[j] = tcsr[4+j]; 
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+
 
 
     always @(posedge clk) begin

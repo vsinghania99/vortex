@@ -21,6 +21,7 @@ module VX_tcu_unit import VX_fpu_pkg::*; #(
 
     VX_dispatch_if.slave    dispatch_if [`ISSUE_WIDTH],
     VX_tcu_to_csr_if.master tcu_to_csr_if[`NUM_FPU_BLOCKS],
+    VX_tcu_to_lsu_if.master tcu_to_lsu_if,  //Check size
 
     VX_commit_if.master     commit_if [`ISSUE_WIDTH]
 );
@@ -152,9 +153,16 @@ module VX_tcu_unit import VX_fpu_pkg::*; #(
                         if(execute_if.valid) 
                         begin
                             //valid to lsu
-                            //...
+                            tcu_to_lsu_if.ready = 1'b1;
+                            tcu_to_lsu_if.load  = 1'b1;
+                            //tcu_to_lsu_if.addr = execute_if.rs1_data; //Check this 
+
                             //Resp from lsu
-                            next_state = 3'b1;
+                            if(tcu_to_lsu_if.valid) 
+                            begin
+                                tcu_to_lsu_if.ready = 1'b0;
+                                next_state = 3'b1;
+                            end
                         end
                     end
                 3'b1 : //data from GPR to CSR
@@ -204,8 +212,17 @@ module VX_tcu_unit import VX_fpu_pkg::*; #(
                 3'b6 : //data from reg to DCache
                     begin
                         //...
+                        tcu_to_lsu_if.ready = 1'b1;
+                        tcu_to_lsu_if.load  = 1'b0;                 //Store
+                        //tcu_to_lsu_if.addr = execute_if.rs1_data; //Check this 
+
                         //if LSU is done
-                        next_state = 3'b0;
+                        if(tcu_to_lsu_if.valid)
+                        begin
+                            tcu_to_lsu_if.ready = 1'b0;
+                            next_state = 3'b0;
+                        end
+
                         //Gather valid is set high
                     end
             endcase
