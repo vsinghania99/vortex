@@ -2334,7 +2334,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
               //DP(4, "TCU LOAD MEM: ADDRESS=0x" << std::hex << mem_addr_arr[i][j] << ", DATA=0x" << mem_data_arr[i][j]);
             }
           }
-          DP(4, "TCU LOAD MEM: ADDRESS=0x" << std::hex << mem_addr << ", DATA=0x" << mem_data);
+          //DP(4, "TCU LOAD MEM: ADDRESS=0x" << std::hex << mem_addr << ", DATA=0x" << mem_data);
         }
       } break;
       case 1: { 
@@ -2362,12 +2362,12 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
               Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
               *temp_ref = core_->get_csr(csr_addr[(SIZE*SIZE*2) + (i*SIZE+j)], t, warp_id_);
               core_->dcache_write(temp_ref, mem_addr_arr[i][j], mem_bytes);  
-              DP(4, "TCU STORE MEM: ADDRESS=0x" << std::hex << mem_addr_arr[i][j] << ", DATA=0x" << mem_data_arr[i][j]);
+              //DP(4, "TCU STORE MEM: ADDRESS=0x" << std::hex << mem_addr_arr[i][j] << ", DATA=0x" << mem_data_arr[i][j]);
 
             }
           }
 
-          DP(4, "STORE MEM: ADDRESS=0x" << std::hex << mem_addr << ", DATA=0x" << mem_data);
+          //DP(4, "STORE MEM: ADDRESS=0x" << std::hex << mem_addr << ", DATA=0x" << mem_data);
         }
       } break;
       case 2: { //Matrix Multiply
