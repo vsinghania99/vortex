@@ -26,9 +26,11 @@ module VX_lsu_unit import VX_gpu_pkg::*; #(
 
     // inputs
     VX_dispatch_if.slave    dispatch_if [`ISSUE_WIDTH],
+    VX_tcu_to_lsu_if.slave  tcu_to_lsu_if,
 
     // outputs    
     VX_commit_if.master     commit_if [`ISSUE_WIDTH]
+
 );
     localparam BLOCK_SIZE   = 1;
     localparam NUM_LANES    = `NUM_LSU_LANES;
@@ -376,6 +378,7 @@ module VX_lsu_unit import VX_gpu_pkg::*; #(
         .mem_rsp_ready  (cache_rsp_ready)
     );
 
+
     for (genvar i = 0; i < DCACHE_NUM_REQS; ++i) begin
         assign cache_bus_if[i].req_valid = cache_req_valid[i];
         assign cache_bus_if[i].req_data.rw = cache_req_rw[i];
@@ -505,6 +508,16 @@ module VX_lsu_unit import VX_gpu_pkg::*; #(
     end   
 
     assign rsp_tmask = rsp_is_dup ? rsp_tmask_uq : mem_rsp_mask;
+
+    //LSU to CSR logic
+    always@(posedge clk) begin
+        if(tcu_to_lsu_if.ready & tcu_to_lsu_if.load) begin
+            //data from dcache to lsu-csr IF
+        end
+        if(tcu_to_lsu_if.ready & ~tcu_to_lsu_if.load) begin
+            //data from lsu-csr IF to dcache
+        end
+    end
 
     // load commit
 
