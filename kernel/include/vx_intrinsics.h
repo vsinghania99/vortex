@@ -222,7 +222,7 @@ inline void vx_fence() {
 }
 
 //Matrix load
-inline void ml(unsigned dest, unsigned  addr) 
+inline void mload(unsigned dest, unsigned  addr) 
 {
     asm volatile (".insn s 0x7b, 0, x0, %0(%1)" :: "i"(dest), "r"(addr));
 }
