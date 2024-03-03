@@ -161,11 +161,14 @@ module VX_tcu_unit import VX_fpu_pkg::*; #(
                             if(tcu_to_lsu_if.valid) 
                             begin
                                 tcu_to_lsu_if.ready = 1'b0;
-                                next_state = 3'b1;
+                                //next_state = 3'b1;
+                                next_state = 3'b2;
+                                tensor_load_start = 1'b1; 
+                                
                             end
                         end
                     end
-                3'b1 : //data from GPR to CSR
+                3'b1 : //data from GPR to CSR - UNUSED
                     begin
                         //...
                         //if GPR to CSR is done
@@ -201,9 +204,9 @@ module VX_tcu_unit import VX_fpu_pkg::*; #(
                             tcu_to_csr_if[block_idx].write_data   = data_out_c;
                         end
                         if (index_ctr == 2'b3)
-                            next_state = 3'b5;
+                            next_state = 3'b6;
                     end
-                3'b5 : //data from CSR to Reg
+                3'b5 : //data from CSR to Reg - UNUSED
                     begin
                         //...
                         //if CSR to Reg is done

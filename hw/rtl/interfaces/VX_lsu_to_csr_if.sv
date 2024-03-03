@@ -14,11 +14,11 @@
 interface VX_lsu_to_csr_if ();
 
     wire                                read_enable;
-    wire [`NUM_THREADS-1:0][31:0]       read_data;  //Check if using NUM_THREADS is correct
+    wire [`NUM_LSU_LANES-1:0][31:0]     read_data;  //Check if using LSU_LANES is correct
     wire [`VX_CSR_ADDR_BITS-1:0]        read_addr;
 
     wire                                write_enable;
-    wire [`NUM_THREADS-1:0][31:0]       write_data; //Check if using NUM_THREADS is correct
+    wire [`NUM_LSU_LANES-1:0][31:0]     write_data; //Check if using LSU_LANES is correct
     wire [`VX_CSR_ADDR_BITS-1:0]        write_addr;
 
 

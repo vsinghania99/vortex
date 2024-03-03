@@ -27,6 +27,7 @@ module VX_lsu_unit import VX_gpu_pkg::*; #(
     // inputs
     VX_dispatch_if.slave    dispatch_if [`ISSUE_WIDTH],
     VX_tcu_to_lsu_if.slave  tcu_to_lsu_if,
+    VX_lsu_to_csr_if.master lsu_to_csr_if,
 
     // outputs    
     VX_commit_if.master     commit_if [`ISSUE_WIDTH]
@@ -378,18 +379,19 @@ module VX_lsu_unit import VX_gpu_pkg::*; #(
         .mem_rsp_ready  (cache_rsp_ready)
     );
 
+    if(!lsu_to_csr_if.read_enable || !lsu_to_csr_if.write_enable) begin
+        for (genvar i = 0; i < DCACHE_NUM_REQS; ++i) begin
+            assign cache_bus_if[i].req_valid = cache_req_valid[i];
+            assign cache_bus_if[i].req_data.rw = cache_req_rw[i];
+            assign cache_bus_if[i].req_data.byteen = cache_req_byteen[i];
+            assign cache_bus_if[i].req_data.addr = cache_req_addr[i];
+            assign cache_bus_if[i].req_data.data = cache_req_data[i];
+            assign cache_req_ready[i] = cache_bus_if[i].req_ready;
 
-    for (genvar i = 0; i < DCACHE_NUM_REQS; ++i) begin
-        assign cache_bus_if[i].req_valid = cache_req_valid[i];
-        assign cache_bus_if[i].req_data.rw = cache_req_rw[i];
-        assign cache_bus_if[i].req_data.byteen = cache_req_byteen[i];
-        assign cache_bus_if[i].req_data.addr = cache_req_addr[i];
-        assign cache_bus_if[i].req_data.data = cache_req_data[i];
-        assign cache_req_ready[i] = cache_bus_if[i].req_ready;
-
-        assign cache_rsp_valid[i] = cache_bus_if[i].rsp_valid;
-        assign cache_rsp_data[i] = cache_bus_if[i].rsp_data.data;
-        assign cache_bus_if[i].rsp_ready = cache_rsp_ready[i];
+            assign cache_rsp_valid[i] = cache_bus_if[i].rsp_valid;
+            assign cache_rsp_data[i] = cache_bus_if[i].rsp_data.data;
+            assign cache_bus_if[i].rsp_ready = cache_rsp_ready[i];
+        end
     end
 
     // cache tag formatting: <uuid, tag, type>
@@ -509,15 +511,61 @@ module VX_lsu_unit import VX_gpu_pkg::*; #(
 
     assign rsp_tmask = rsp_is_dup ? rsp_tmask_uq : mem_rsp_mask;
 
+
+
+
+    localparam counter;
+    
     //LSU to CSR logic
     always@(posedge clk) begin
-        if(tcu_to_lsu_if.ready & tcu_to_lsu_if.load) begin
-            //data from dcache to lsu-csr IF
+        
+        if(!reset) begin
+            counter = 0
         end
+
+        //data from dcache to lsu-csr IF (MAT LOAD)
+        if(tcu_to_lsu_if.ready & tcu_to_lsu_if.load) begin
+            if(counter != 2) begin
+                lsu_to_csr_if.write_enable = 1'b1;
+                counter += 1;
+                for (genvar i = 0; i < `NUM_LSU_LANES; i++) begin   \\Each lane of LSU sends 32-bit data
+                    lsu_to_csr_if.write_data[i] = mem_rsp_data[i];
+                end
+                case(counter) begin
+                    2'b1: begin
+                        lsu_to_csr_if.write_addr = `VX_MAT_MUL_0;
+                    end
+                    2'b2: begin
+                        lsu_to_csr_if.write_addr = `VX_MAT_MUL_4;
+                    end
+                end
+            end
+            else begin
+                lsu_to_csr_if.write_enable = 1'b0;
+                counter = 0;
+            end
+        end
+
+        //data from lsu-csr IF to dcache (MAT STORE)
+        //Store addr will be got from execute
         if(tcu_to_lsu_if.ready & ~tcu_to_lsu_if.load) begin
-            //data from lsu-csr IF to dcache
+            if(counter != 1) begin
+                lsu_to_csr_if.read_enable = 1'b1;
+                for (genvar i = 0; i < `NUM_LSU_LANES; i++) begin   //Each lane of LSU reads 32-bit data from dcache
+                    mem_req_data[i] = lsu_to_csr_if.read_data[i]; //Currently, there are multiple wires to this, needs a switch on the dcache IF
+                    lsu_to_csr_if.read_addr = `VX_MAT_MUL_8;
+                    counter += 1;
+                end
+            end
+            else begin
+                lsu_to_csr_if.read_enable = 1'b0;
+                counter = 0;
+            end
         end
     end
+
+
+
 
     // load commit
 

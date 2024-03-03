@@ -181,25 +181,25 @@ import VX_fpu_pkg::*;
     reg [1:0] state;
     always @(*)  
     begin
-        if (~reset) begin
+        if (!reset) begin
             //Reset logic
         end
         else begin
-            for (genvar i = 0; i < `NUM_FPU_BLOCKS; i++) begin   
+            for (genvar i = 0; i < `NUM_FPU_BLOCKS; i++) begin          //BLOCKS = 1 assumed here for now
                 if(lsu_write_enable[i]) begin
                     for (genvar j = 0; j < `NUM_THREADS; j++) begin
                          //Write to CSR
-                         case(lsu_to_csr_if[i].write_addr) begin
-                            VX_MAT_MUL_8: tcsr_n[8+j]  = lsu_to_csr_if[i].write_data[j];
-                         end
+                         case(lsu_to_csr_if[i].read_addr) begin
+                            `VX_MAT_MUL_0: tcsr[j] = lsu_to_csr_if[i].read_data[j];
+                            `VX_MAT_MUL_4: tcsr[4+j] = lsu_to_csr_if[i].read_data[j]; 
+                         end     
                     end
                 end
                 if(lsu_read_enable[i]) begin
                     for (genvar j = 0; j < `NUM_THREADS; j++) begin
                         //Read from CSR
-                        case(lsu_to_csr_if[i].read_addr) begin
-                            `VX_MAT_MUL_0: lsu_to_csr_if[i].read_data[j] = tcsr[j];
-                            `VX_MAT_MUL_4: lsu_to_csr_if[i].read_data[j] = tcsr[4+j]; 
+                        case(lsu_to_csr_if[i].write_addr) begin
+                            VX_MAT_MUL_8: lsu_to_csr_if[i].write_data[j] = tcsr_n[8+j];
                         end
                     end
                 end
