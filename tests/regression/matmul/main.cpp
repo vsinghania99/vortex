@@ -61,6 +61,8 @@ void cleanup() {
   }
 }
 
+//kernel_arg, buf_size, num_points
+
 int run_test(const kernel_arg_t& kernel_arg,
              uint32_t buf_size, 
              uint32_t num_points) {
@@ -118,8 +120,11 @@ int main(int argc, char *argv[]) {
   RT_CHECK(vx_dev_caps(device, VX_CAPS_NUM_WARPS, &num_warps));
   RT_CHECK(vx_dev_caps(device, VX_CAPS_NUM_THREADS, &num_threads));
 
+  //1
   uint32_t num_tasks  = num_cores * num_warps * num_threads;
+  //4*1*1
   uint32_t num_points = SIZE * SIZE * count * num_tasks;
+  //size of each operand
   uint32_t buf_size   = num_points * sizeof(int32_t);
 
   //64
@@ -140,8 +145,9 @@ int main(int argc, char *argv[]) {
   RT_CHECK(vx_mem_alloc(device, buf_size, VX_MEM_TYPE_GLOBAL, &kernel_arg.dst_addr));
 
   //1
+  std::cout << "num_tasks = " << num_tasks << std::endl;
   kernel_arg.num_tasks = num_tasks;
-  //0x40
+  //1
   kernel_arg.task_size = count;
 
   std::cout << "dev_src0=0x" << std::hex << kernel_arg.src0_addr << std::endl;
@@ -162,6 +168,7 @@ int main(int argc, char *argv[]) {
 
   // upload source buffer0
   {
+    staging_buf.resize(buf_size);
     std::cout << "upload source buffer0" << std::endl;
     auto buf_ptr = (int32_t*)staging_buf.data();
     for (uint32_t i = 0; i < num_points; i+=4) {

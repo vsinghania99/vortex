@@ -15,6 +15,7 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 
 
 	uint32_t offset = task_id * count;
+	vx_printf("count = %d\n", count);
 	for (uint32_t i = 0; i < count; ++i) {
 		mload(0,a_addr);
     	//Debug
@@ -22,7 +23,7 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
     	vx_printf("KDEBUG Starting Matmul\n");
 
     	mm();
-    	vx_printf("KDEBUG Finished Matmul\n");
+    	//vx_printf("KDEBUG Finished Matmul\n");
 
     	ms(c_addr);
 	}
@@ -32,6 +33,8 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 
 int main() {
 	kernel_arg_t* arg = (kernel_arg_t*)KERNEL_ARG_DEV_MEM_ADDR;
+	vx_printf("arg->num_tasks = %d\n", arg->num_tasks);
 	vx_spawn_tasks(arg->num_tasks, (vx_spawn_tasks_cb)kernel_body, arg);
+	//vx_spawn_tasks(1, (vx_spawn_tasks_cb)kernel_body, arg);
 	return 0;
 }

@@ -2306,6 +2306,9 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
       case 0: 
       { //Matrix Load  
         DP(4, "TCU LOAD");
+        trace->exe_type = ExeType::TCU;
+        trace->tcu_type = TCUType::TCU_LOAD;
+        
         uint32_t mem_bytes = 1 << (2 & 0x3);
         //TODO - make these threads do different work
         for (uint32_t t = 0; t < num_threads; ++t) 
@@ -2339,6 +2342,9 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
       } break;
       case 1: { 
         DP(4, "TCU STORE");
+        trace->exe_type = ExeType::TCU;
+        trace->tcu_type = TCUType::TCU_STORE;
+
         uint32_t mem_bytes = 1 << (2 & 0x3);
         //Matrix Store
         //Get address to which need to store
@@ -2372,7 +2378,9 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
       } break;
       case 2: { //Matrix Multiply
         DP(4, "TCU MULTIPLY MAT");
-        
+        trace->exe_type = ExeType::TCU;
+        trace->tcu_type = TCUType::TCU_MUL;
+
         for (uint32_t t = 0; t < num_threads; ++t) 
         {
           if (!tmask_.test(t))

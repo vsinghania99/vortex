@@ -268,6 +268,42 @@ void LsuUnit::tick() {
     ++input_idx_;
 }
 
+//TODO - change this to include pending loads, 
+TcuUnit::TcuUnit(const SimContext& ctx, Core* core) : ExeUnit(ctx, core, "TCU") {}
+
+//TODO - fix this
+//void TcuUnit::reset() {
+    //pending_rd_reqs_.clear();
+    //pending_loads_ = 0;
+    //fence_lock_ = false;
+//}
+
+//TODO - fix the delays to be sent out here
+void TcuUnit::tick() {
+    for (uint32_t i = 0; i < ISSUE_WIDTH; ++i) {
+        auto& input = Inputs.at(i);
+        if (input.empty()) 
+            continue;
+        auto& output = Outputs.at(i);
+        auto trace = input.front();
+        switch (trace->tcu_type) {
+        case TCUType::TCU_LOAD:
+            output.send(trace, 2);
+            break;
+        case TCUType::TCU_STORE:
+            output.send(trace, 2);
+            break;
+        case TCUType::TCU_MUL:
+            output.send(trace, 2);
+            break;
+        default:
+            std::abort();
+        }    
+        DT(3, "pipeline-execute: op=" << trace->tcu_type << ", " << *trace);
+        input.pop();
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 SfuUnit::SfuUnit(const SimContext& ctx, Core* core) 

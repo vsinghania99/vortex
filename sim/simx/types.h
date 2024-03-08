@@ -82,6 +82,7 @@ enum class ExeType {
   LSU,
   FPU,
   SFU,
+  TCU,
   ExeTypeCount
 };
 
@@ -91,6 +92,7 @@ inline std::ostream &operator<<(std::ostream &os, const ExeType& type) {
   case ExeType::LSU: os << "LSU"; break;
   case ExeType::FPU: os << "FPU"; break;
   case ExeType::SFU: os << "SFU"; break;
+  case ExeType::TCU: os << "TCU"; break;
   default: assert(false);
   }
   return os;
@@ -125,6 +127,22 @@ enum class LsuType {
   STORE,
   FENCE
 };
+
+enum class TCUType {
+  TCU_LOAD,
+  TCU_STORE,
+  TCU_MUL
+};
+
+inline std::ostream &operator<<(std::ostream &os, const TCUType& type) {
+  switch (type) {
+  case TCUType::TCU_LOAD:  os << "TCU LOAD"; break;
+  case TCUType::TCU_STORE: os << "TCU STORE"; break;
+  case TCUType::TCU_MUL: os << "TCU MUL"; break;
+  default: assert(false);
+  }
+  return os;
+}
 
 inline std::ostream &operator<<(std::ostream &os, const LsuType& type) {
   switch (type) {

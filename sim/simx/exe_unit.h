@@ -70,8 +70,7 @@ public:
     void reset();
 
     void tick();
-
-private:    
+    private:    
     struct pending_req_t {
       pipeline_trace_t* trace;
       uint32_t count;
@@ -82,6 +81,15 @@ private:
     uint64_t pending_loads_;
     bool fence_lock_;
     uint32_t input_idx_;
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
+class TcuUnit : public ExeUnit {
+public:
+    TcuUnit(const SimContext& ctx, Core*);
+    
+    void tick();
 };
 
 ///////////////////////////////////////////////////////////////////////////////
