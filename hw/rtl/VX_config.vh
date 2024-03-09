@@ -262,6 +262,11 @@
 `define NUM_LSU_LANES   `MIN(`NUM_THREADS, 4)
 `endif
 
+// Number of TCU units
+`ifndef NUM_TCU_LANES
+`define NUM_TCU_LANES   1
+`endif
+
 // Number of SFU units
 `ifndef NUM_SFU_LANES
 `define NUM_SFU_LANES   `MIN(`NUM_THREADS, 4)
