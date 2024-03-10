@@ -395,7 +395,8 @@ public:
     , type_(type)
     , delay_(delay)
     , cursors_(num_outputs, 0)
-    , num_reqs_(num_inputs / num_outputs)
+    //, num_reqs_(num_inputs / num_outputs)
+    , num_reqs_(log2ceil(num_inputs / num_outputs))
   {
     assert(delay != 0);    
     assert(num_inputs <= 32);
@@ -419,12 +420,13 @@ public:
   void tick() {
     uint32_t I = Inputs.size();
     uint32_t O = Outputs.size();
-    uint32_t R = num_reqs_;
+    //uint32_t R = num_reqs_;
+    uint32_t R = 1 << num_reqs_;
 
     // skip bypass mode
     if (I == O)
       return;
-        
+
     // process inputs       
     for (uint32_t o = 0; o < O; ++o) {
       for (uint32_t r = 0; r < R; ++r) {
