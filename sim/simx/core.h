@@ -176,7 +176,6 @@ private:
   std::vector<std::shared_ptr<Warp>> warps_;  
   std::vector<WarpMask> barriers_;
   std::vector<Byte> fcsrs_;
-  std::vector<Word> tcore_csrs_;
   std::vector<IBuffer> ibuffers_;
   Scoreboard scoreboard_;
   std::vector<Operand::Ptr> operands_;
@@ -200,6 +199,7 @@ private:
   std::unordered_map<int, std::stringstream> print_bufs_;
 
   std::vector<std::vector<CSRs>> csrs_;
+  std::vector<std::vector<CSRs>> tcore_csrs_;
   
   PerfStats perf_stats_;
   

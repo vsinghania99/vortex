@@ -222,21 +222,22 @@ inline void vx_fence() {
 }
 
 //Matrix load
+//Converted instruction type cause destination registers were not getiing blocked otherwise
 inline void mload(unsigned dest, unsigned  addr) 
 {
-    asm volatile (".insn s 0x7b, 0, x0, %0(%1)" :: "i"(dest), "r"(addr));
+    asm volatile (".insn i 0x7b, 0, x0, %0(%1)" :: "i"(dest), "r"(addr));
 }
 
 //mat store
 inline void ms(unsigned  addr) 
 {
-    asm volatile (".insn s 0x7b, 1, x0, 0(%0)" :: "r"(addr));
+    asm volatile (".insn i 0x7b, 1, x0, 0(%0)" :: "r"(addr));
 }
 
 //mat mul
 inline void mm() 
 {
-    asm volatile (".insn s 0x7b, 2, x0, 0(x0)");
+    asm volatile (".insn i 0x7b, 2, x0, 0(x0)");
 }
 
 #ifdef __cplusplus

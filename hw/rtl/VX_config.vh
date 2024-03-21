@@ -99,6 +99,10 @@
 `endif
 `define NUM_SOCKETS `UP(`NUM_CORES / `SOCKET_SIZE)
 
+`ifndef TC_SIZE
+`define TC_SIZE 2
+`endif
+
 `ifdef L2_ENABLE
     `define L2_ENABLED   1
 `else

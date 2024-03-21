@@ -4,7 +4,8 @@
 #include <vector>
 #include <vortex.h>
 #include "common.h"
-#define SIZE 2
+//#define TC_SIZE     2
+//#define matrix_size 2
 
 #define RT_CHECK(_expr)                                         \
    do {                                                         \
@@ -19,7 +20,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 const char* kernel_file = "kernel.bin";
-uint32_t count = 0;
+uint32_t matrix_size = 0;
 
 vx_device_h device = nullptr;
 std::vector<uint8_t> staging_buf;
@@ -35,7 +36,7 @@ static void parse_args(int argc, char **argv) {
   while ((c = getopt(argc, argv, "n:k:h?")) != -1) {
     switch (c) {
     case 'n':
-      count = atoi(optarg);
+      matrix_size = atoi(optarg);
       break;
     case 'k':
       kernel_file = optarg;
@@ -83,7 +84,7 @@ int run_test(const kernel_arg_t& kernel_arg,
   {
     int errors = 0;
     auto buf_ptr = (int32_t*)staging_buf.data();
-    uint32_t Ans[SIZE*SIZE] = {108,124,212,244};
+    uint32_t Ans[TC_SIZE*TC_SIZE] = {108,124,212,244};
     
     for (uint32_t i = 0; i < num_points; ++i) {
       //int ref = i + i; 
@@ -107,8 +108,8 @@ int run_test(const kernel_arg_t& kernel_arg,
 int main(int argc, char *argv[]) {  
   // parse command arguments
   parse_args(argc, argv);
-  if (count == 0) {
-    count = 1;
+  if (matrix_size == 0) {
+    matrix_size = 2;
   }
 
   // open device connection
@@ -120,10 +121,12 @@ int main(int argc, char *argv[]) {
   RT_CHECK(vx_dev_caps(device, VX_CAPS_NUM_WARPS, &num_warps));
   RT_CHECK(vx_dev_caps(device, VX_CAPS_NUM_THREADS, &num_threads));
 
-  //1
-  uint32_t num_tasks  = num_cores * num_warps * num_threads;
+  //Number of tiles * threads
+  //uint32_t num_tasks  = num_cores * num_warps * num_threads;
+  //TODO - fix this
+  uint32_t num_tasks  = ((matrix_size*matrix_size)/(TC_SIZE*TC_SIZE))*num_threads;
   //4*1*1
-  uint32_t num_points = SIZE * SIZE * count * num_tasks;
+  uint32_t num_points = TC_SIZE * TC_SIZE * matrix_size * num_tasks;
   //size of each operand
   uint32_t buf_size   = num_points * sizeof(int32_t);
 
@@ -138,7 +141,6 @@ int main(int argc, char *argv[]) {
 
   // allocate device memory
   std::cout << "allocate device memory" << std::endl;
-  //std::cout << "count = " << count << std::endl;
   
   RT_CHECK(vx_mem_alloc(device, buf_size, VX_MEM_TYPE_GLOBAL, &kernel_arg.src0_addr));
   RT_CHECK(vx_mem_alloc(device, buf_size, VX_MEM_TYPE_GLOBAL, &kernel_arg.src1_addr));
@@ -148,13 +150,13 @@ int main(int argc, char *argv[]) {
   std::cout << "num_tasks = " << num_tasks << std::endl;
   kernel_arg.num_tasks = num_tasks;
   //1
-  kernel_arg.task_size = count;
+  kernel_arg.matrix_size = matrix_size;
 
   std::cout << "dev_src0=0x" << std::hex << kernel_arg.src0_addr << std::endl;
   std::cout << "dev_src1=0x" << std::hex << kernel_arg.src1_addr << std::endl;
   std::cout << "dev_dst=0x" << std::hex << kernel_arg.dst_addr << std::endl;
   std::cout << "num_tasks = " << std::hex << kernel_arg.num_tasks << std::endl;
-  std::cout << "task_size = " << std::hex << kernel_arg.task_size << std::endl;
+  std::cout << "matrix_size = " << std::hex << kernel_arg.matrix_size << std::endl;
   
   // allocate staging buffer  
   std::cout << "allocate staging buffer" << std::endl;    

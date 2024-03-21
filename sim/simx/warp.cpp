@@ -30,6 +30,7 @@ Warp::Warp(Core *core, uint32_t warp_id)
     , ireg_file_(core->arch().num_threads(), std::vector<Word>(core->arch().num_regs()))
     , freg_file_(core->arch().num_threads(), std::vector<uint64_t>(core->arch().num_regs()))
     , vreg_file_(core->arch().num_threads(), std::vector<Byte>(core->arch().vsize()))
+    , scratchpad(std::vector<Word>(core->arch().tc_size() * core->arch().tc_size() * 3))
 {
   this->reset();
 }
@@ -53,6 +54,11 @@ void Warp::reset() {
     }
   }
   uui_gen_.reset();
+  
+  for (auto& reg : scratchpad) 
+  {
+    reg = 0;
+  }
 }
 
 pipeline_trace_t* Warp::eval() {
@@ -97,6 +103,10 @@ pipeline_trace_t* Warp::eval() {
     
   // Execute
   this->execute(*instr, trace);
+  DP (5, "Used ireg : " << trace->used_iregs << std::endl);
+  DP (5, "Used freg : " << trace->used_fregs << std::endl);
+  
+  //printf("Used freg : %x\n", trace->used_fregs);
 
   DP(5, "Register state:");
   for (uint32_t i = 0; i < arch_.num_regs(); ++i) {
@@ -111,6 +121,10 @@ pipeline_trace_t* Warp::eval() {
       DPN(5, ' ' << std::setfill('0') << std::setw(16) << std::hex << freg_file_.at(j).at(i) << std::setfill(' ') << ' ');
     }
     DPN(5, std::endl);
+  }
+  DP(5, "Scratchpad state:");
+  for (uint32_t i = 0; i < arch_.tc_size() * arch_.tc_size(); ++i) {
+    DPN(5, scratchpad[i] << " | " << scratchpad[i + (arch_.tc_size()*arch_.tc_size())] << " | " << scratchpad[i + (2*arch_.tc_size()*arch_.tc_size())] << std::endl);
   }  
 
   return trace;

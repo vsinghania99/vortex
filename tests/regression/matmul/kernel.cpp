@@ -4,7 +4,7 @@
 #include "common.h"
 
 void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
-	uint32_t count    = arg->task_size;
+	//uint32_t tile_num    = arg->task_size;
 	int32_t* src0_ptr = (int32_t*)arg->src0_addr;
 	int32_t* src1_ptr = (int32_t*)arg->src1_addr;
 	int32_t* dst_ptr  = (int32_t*)arg->dst_addr;
@@ -13,21 +13,21 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	unsigned b_addr = reinterpret_cast<unsigned>(src1_ptr);
 	unsigned c_addr = reinterpret_cast<unsigned>(dst_ptr);
 
+	//TODO - check if okay to send base address like this?
+	//TODO - make flexible for data types
+	unsigned a_addr_base = a_addr + (((task_id*arg->matrix_size)/arg->num_tasks)*4) ;
+	unsigned b_addr_base = b_addr + (((task_id*arg->matrix_size)/arg->num_tasks)*4) ;
+	unsigned c_addr_base = c_addr + (((task_id*arg->matrix_size)/arg->num_tasks)*4) ;
+	
+	mload (0, a_addr_base);
+	mload (1, b_addr_base);
+	//In case of multiple threads - sync load
+	vx_fence();
 
-	uint32_t offset = task_id * count;
-	vx_printf("count = %d\n", count);
-	for (uint32_t i = 0; i < count; ++i) {
-		mload(0,a_addr);
-    	//Debug
-		mload(1,b_addr);
-    	vx_printf("KDEBUG Starting Matmul\n");
+    mm();
 
-    	mm();
-    	//vx_printf("KDEBUG Finished Matmul\n");
-
-    	ms(c_addr);
-	}
-
+	ms(c_addr_base);
+	//In case of multiple threads - sync store
 	vx_fence();
 }
 

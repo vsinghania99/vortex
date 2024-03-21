@@ -28,7 +28,6 @@
 
 using namespace vortex;
 
-//TODO - change number of tcore_csrs_ 
 Core::Core(const SimContext& ctx, 
            uint32_t core_id, 
            Socket* socket,
@@ -47,7 +46,6 @@ Core::Core(const SimContext& ctx,
     , warps_(arch.num_warps())
     , barriers_(arch.num_barriers(), 0)
     , fcsrs_(arch.num_warps(), 0)
-    , tcore_csrs_(12, 0)
     , ibuffers_(arch.num_warps(), IBUF_SIZE)
     , scoreboard_(arch_)
     , operands_(ISSUE_WIDTH)
@@ -57,7 +55,8 @@ Core::Core(const SimContext& ctx,
     , fetch_latch_("fetch")
     , decode_latch_("decode")
     , pending_icache_(arch_.num_warps())
-    , csrs_(arch.num_warps())  
+    , csrs_(arch.num_warps()) 
+    , tcore_csrs_(arch.num_warps()) 
     , commit_arbs_(ISSUE_WIDTH)
 {
   char sname[100];
@@ -66,6 +65,10 @@ Core::Core(const SimContext& ctx,
     csrs_.at(i).resize(arch.num_threads());
   }
 
+  for (uint32_t i = 0; i < arch_.num_warps(); ++i) {
+    tcore_csrs_.at(i).resize(arch.num_threads());
+  }
+  
   for (uint32_t i = 0; i < arch_.num_warps(); ++i) {
     warps_.at(i) = std::make_shared<Warp>(this, i);
   }
@@ -153,10 +156,6 @@ void Core::reset() {
   
   for (auto& ibuf : ibuffers_) {
     ibuf.clear();
-  }
-
-  for (auto& tcsr : tcore_csrs_) {
-    tcsr = 0;
   }
 
   ibuffer_idx_ = 0;
@@ -531,6 +530,9 @@ void Core::cout_flush() {
   }
 }
 
+//TODO - increase the case statements in tcore_csrs for > 12 tcore_csrs/thread
+//Depends on size of tensor core (?) [worst case csr requirement = 1 thread configuration]
+//Currently 12 tcore_csrs provisioned
 uint32_t Core::get_csr(uint32_t addr, uint32_t tid, uint32_t wid) {
   switch (addr) {
   case VX_CSR_SATP:
@@ -579,29 +581,29 @@ uint32_t Core::get_csr(uint32_t addr, uint32_t tid, uint32_t wid) {
   case VX_CSR_MINSTRET_H: // NumInsts
     return (uint32_t)(perf_stats_.instrs >> 32);
   case VX_MAT_MUL_0:
-    return tcore_csrs_.at(0);
+    return tcore_csrs_[wid][tid].at(VX_MAT_MUL_0);
   case VX_MAT_MUL_1:
-    return tcore_csrs_.at(1);
+    return tcore_csrs_[wid][tid].at(VX_MAT_MUL_1);
   case VX_MAT_MUL_2:
-    return tcore_csrs_.at(2);
+    return tcore_csrs_[wid][tid].at(VX_MAT_MUL_2);
   case VX_MAT_MUL_3:
-    return tcore_csrs_.at(3);
+    return tcore_csrs_[wid][tid].at(VX_MAT_MUL_3);
   case VX_MAT_MUL_4:
-    return tcore_csrs_.at(4);
+    return tcore_csrs_[wid][tid].at(VX_MAT_MUL_4);
   case VX_MAT_MUL_5:
-    return tcore_csrs_.at(5);
+    return tcore_csrs_[wid][tid].at(VX_MAT_MUL_5);
   case VX_MAT_MUL_6:
-    return tcore_csrs_.at(6);
+    return tcore_csrs_[wid][tid].at(VX_MAT_MUL_6);
   case VX_MAT_MUL_7:
-    return tcore_csrs_.at(7);
+    return tcore_csrs_[wid][tid].at(VX_MAT_MUL_7);
   case VX_MAT_MUL_8:
-    return tcore_csrs_.at(8);
+    return tcore_csrs_[wid][tid].at(VX_MAT_MUL_8);
   case VX_MAT_MUL_9:
-    return tcore_csrs_.at(9);
+    return tcore_csrs_[wid][tid].at(VX_MAT_MUL_9);
   case VX_MAT_MUL_10:
-    return tcore_csrs_.at(10);
+    return tcore_csrs_[wid][tid].at(VX_MAT_MUL_10);
   case VX_MAT_MUL_11:
-    return tcore_csrs_.at(11);
+    return tcore_csrs_[wid][tid].at(VX_MAT_MUL_11);
   default:
     if ((addr >= VX_CSR_MPM_BASE && addr < (VX_CSR_MPM_BASE + 32))
      || (addr >= VX_CSR_MPM_BASE_H && addr < (VX_CSR_MPM_BASE_H + 32))) {
@@ -725,7 +727,6 @@ uint32_t Core::get_csr(uint32_t addr, uint32_t tid, uint32_t wid) {
 }
 
 void Core::set_csr(uint32_t addr, uint32_t value, uint32_t tid, uint32_t wid) {
-  __unused (tid);
   switch (addr) {
   case VX_CSR_FFLAGS:
     fcsrs_.at(wid) = (fcsrs_.at(wid) & ~0x1F) | (value & 0x1F);
@@ -748,40 +749,40 @@ void Core::set_csr(uint32_t addr, uint32_t value, uint32_t tid, uint32_t wid) {
   case VX_CSR_MNSTATUS:
     break;
   case VX_MAT_MUL_0:
-    tcore_csrs_.at(0) = (tcore_csrs_.at(0) & ~0xFFFF) | (value & 0xFFFF);
+    tcore_csrs_[wid][tid].at(VX_MAT_MUL_0) = (tcore_csrs_[wid][tid].at(VX_MAT_MUL_0) & ~0xFFFF) | (value & 0xFFFF);
     break;
   case VX_MAT_MUL_1:
-    tcore_csrs_.at(1) = (tcore_csrs_.at(1) & ~0xFFFF) | (value & 0xFFFF);
+    tcore_csrs_[wid][tid].at(VX_MAT_MUL_1) = (tcore_csrs_[wid][tid].at(VX_MAT_MUL_1) & ~0xFFFF) | (value & 0xFFFF);
     break;
   case VX_MAT_MUL_2:
-    tcore_csrs_.at(2) = (tcore_csrs_.at(2) & ~0xFFFF) | (value & 0xFFFF);
+    tcore_csrs_[wid][tid].at(VX_MAT_MUL_2) = (tcore_csrs_[wid][tid].at(VX_MAT_MUL_2) & ~0xFFFF) | (value & 0xFFFF);
     break;
   case VX_MAT_MUL_3:
-    tcore_csrs_.at(3) = (tcore_csrs_.at(3) & ~0xFFFF) | (value & 0xFFFF);
+    tcore_csrs_[wid][tid].at(VX_MAT_MUL_3) = (tcore_csrs_[wid][tid].at(VX_MAT_MUL_3) & ~0xFFFF) | (value & 0xFFFF);
     break;
   case VX_MAT_MUL_4:
-    tcore_csrs_.at(4) = (tcore_csrs_.at(4) & ~0xFFFF) | (value & 0xFFFF);
+    tcore_csrs_[wid][tid].at(VX_MAT_MUL_4) = (tcore_csrs_[wid][tid].at(VX_MAT_MUL_4) & ~0xFFFF) | (value & 0xFFFF);
     break;
   case VX_MAT_MUL_5:
-    tcore_csrs_.at(5) = (tcore_csrs_.at(5) & ~0xFFFF) | (value & 0xFFFF);
+    tcore_csrs_[wid][tid].at(VX_MAT_MUL_5) = (tcore_csrs_[wid][tid].at(VX_MAT_MUL_5) & ~0xFFFF) | (value & 0xFFFF);
     break;
   case VX_MAT_MUL_6:
-    tcore_csrs_.at(6) = (tcore_csrs_.at(6) & ~0xFFFF) | (value & 0xFFFF);
+    tcore_csrs_[wid][tid].at(VX_MAT_MUL_6) = (tcore_csrs_[wid][tid].at(VX_MAT_MUL_6) & ~0xFFFF) | (value & 0xFFFF);
     break;
   case VX_MAT_MUL_7:
-    tcore_csrs_.at(7) = (tcore_csrs_.at(7) & ~0xFFFF) | (value & 0xFFFF);
+    tcore_csrs_[wid][tid].at(VX_MAT_MUL_7) = (tcore_csrs_[wid][tid].at(VX_MAT_MUL_7) & ~0xFFFF) | (value & 0xFFFF);
     break;
   case VX_MAT_MUL_8:
-    tcore_csrs_.at(8) = (tcore_csrs_.at(8) & ~0xFFFF) | (value & 0xFFFF);
+    tcore_csrs_[wid][tid].at(VX_MAT_MUL_8) = (tcore_csrs_[wid][tid].at(VX_MAT_MUL_8) & ~0xFFFF) | (value & 0xFFFF);
     break;
   case VX_MAT_MUL_9:
-    tcore_csrs_.at(9) = (tcore_csrs_.at(9) & ~0xFFFF) | (value & 0xFFFF);
+    tcore_csrs_[wid][tid].at(VX_MAT_MUL_9) = (tcore_csrs_[wid][tid].at(VX_MAT_MUL_9) & ~0xFFFF) | (value & 0xFFFF);
     break;
   case VX_MAT_MUL_10:
-    tcore_csrs_.at(10) = (tcore_csrs_.at(10) & ~0xFFFF) | (value & 0xFFFF);
+    tcore_csrs_[wid][tid].at(VX_MAT_MUL_10) = (tcore_csrs_[wid][tid].at(VX_MAT_MUL_10) & ~0xFFFF) | (value & 0xFFFF);
     break;
   case VX_MAT_MUL_11:
-    tcore_csrs_.at(11) = (tcore_csrs_.at(11) & ~0xFFFF) | (value & 0xFFFF);
+    tcore_csrs_[wid][tid].at(VX_MAT_MUL_11) = (tcore_csrs_[wid][tid].at(VX_MAT_MUL_11) & ~0xFFFF) | (value & 0xFFFF);
     break;
   default:
     {

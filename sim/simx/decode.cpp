@@ -38,7 +38,7 @@ static const std::unordered_map<Opcode, InstType> sc_instTable = {
   {Opcode::JAL_INST,   InstType::J_TYPE},
   {Opcode::JALR_INST,  InstType::I_TYPE},
   {Opcode::SYS_INST,   InstType::I_TYPE},
-  {Opcode::TCU,        InstType::S_TYPE},
+  {Opcode::TCU,        InstType::I_TYPE},
   {Opcode::FENCE,      InstType::I_TYPE},
   {Opcode::AMO,        InstType::R_TYPE},
   {Opcode::FL,         InstType::I_TYPE},
@@ -581,9 +581,15 @@ std::shared_ptr<Instr> Decoder::decode(uint32_t code) const {
     instr->addSrcReg(rs1, RegType::Integer);
     if (op == Opcode::FL) {
       instr->setDestReg(rd, RegType::Float);      
-    } else {
+    } 
+    else if (op == Opcode::TCU){
+      instr->setDestReg(rs1, RegType::Integer);
+      DP (4, "rs0 = " << rs1 << std::endl);
+    } 
+    else {
       instr->setDestReg(rd, RegType::Integer);
-    }    
+    }   
+  
     instr->setFunc3(func3);
     instr->setFunc7(func7);
     switch (op) {

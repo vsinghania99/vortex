@@ -168,6 +168,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     trace->exe_type = ExeType::ALU;    
     trace->alu_type = AluType::ARITH;
     trace->used_iregs.set(rsrc0);
+    DP (4, "rsrc0 = " << rsrc0);
     trace->used_iregs.set(rsrc1);
     for (uint32_t t = thread_start; t < num_threads; ++t) {
       if (!tmask_.test(t))
@@ -2295,12 +2296,20 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
       std::abort();
     }
   } break;  
-  case TCU: { //Tensor core
+  case TCU: 
+  { //Tensor core
     //TODO - change this
     int SIZE = 2;
 
     //load memory addresses
     uint64_t csr_addr[SIZE*SIZE*3] = {VX_MAT_MUL_0,VX_MAT_MUL_1, VX_MAT_MUL_2, VX_MAT_MUL_3, VX_MAT_MUL_4, VX_MAT_MUL_5, VX_MAT_MUL_6, VX_MAT_MUL_7, VX_MAT_MUL_8, VX_MAT_MUL_9, VX_MAT_MUL_10, VX_MAT_MUL_11};
+    //TODO - make it data-type flexible
+    uint32_t mem_bytes = 1 << (2 & 0x3);
+    
+    uint16_t tc_size = core_->arch().tc_size();
+    //TODO - check if this is okay
+    //Number of loads - dependant on the thread config
+    int num_data_per_thread = (tc_size*tc_size)/num_threads;
 
     switch (func3) {
       case 0: 
@@ -2309,120 +2318,74 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
         trace->exe_type = ExeType::TCU;
         trace->tcu_type = TCUType::TCU_LOAD;
         
-        uint32_t mem_bytes = 1 << (2 & 0x3);
-        //TODO - make these threads do different work
-        for (uint32_t t = 0; t < num_threads; ++t) 
+        trace->used_iregs.set(rsrc0);
+        rd_write = true;
+        
+        for (uint32_t t = thread_start; t < num_threads; ++t) 
         {
           if (!tmask_.test(t))
             continue;
-          uint32_t mem_addr_arr[SIZE][SIZE];
           uint32_t base_addr = rsdata[t][0].i ;
-          //Debug
-          //printf("Base address = %x\n", base_addr);
-          //get the memory addresses
-          for(int i = 0; i < SIZE; i++){
-            for(int j = 0; j < SIZE; j++){
-              mem_addr_arr[i][j] = base_addr + ((SIZE*i) + j)*4;
-            }
+          //Load A or B (depends on immsrc)
+          for (int n=0; n<num_data_per_thread; n++)
+          {
+            Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
+            //TODO - multiple "mem_bytes" fetch in 1 shot?
+            //core_->dcache_read(temp_ref, base_addr+(t*num_data_per_thread)+(n*mem_bytes), mem_bytes);
+            core_->dcache_read(temp_ref, (base_addr+(n*mem_bytes)), mem_bytes);
+            core_->set_csr(csr_addr[n + (immsrc*num_data_per_thread)], *temp_ref, t, warp_id_);
+            //csr-> scratchpad (TODO :: can intermediate step of moving to CSR be skipped?)
+            scratchpad[(immsrc*tc_size*tc_size) + (t*num_data_per_thread) + n] = core_->get_csr(csr_addr[(immsrc*num_data_per_thread) + n], t, warp_id_);
           }
-
-          //Load data from DRAM->CSRs
-          for(int i = 0; i < SIZE; i++){
-            for(int j = 0; j < SIZE; j++){
-              Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
-              core_->dcache_read(temp_ref, mem_addr_arr[i][j], mem_bytes);
-
-              core_->set_csr(csr_addr[(immsrc*SIZE*SIZE)+(i*SIZE + j)], *temp_ref, t, warp_id_);
-              //Debug
-              //DP(4, "TCU LOAD MEM: ADDRESS=0x" << std::hex << mem_addr_arr[i][j] << ", DATA=0x" << mem_data_arr[i][j]);
-            }
-          }
-          //DP(4, "TCU LOAD MEM: ADDRESS=0x" << std::hex << mem_addr << ", DATA=0x" << mem_data);
         }
       } break;
-      case 1: { 
+      case 1: 
+      { 
         DP(4, "TCU STORE");
         trace->exe_type = ExeType::TCU;
         trace->tcu_type = TCUType::TCU_STORE;
 
-        uint32_t mem_bytes = 1 << (2 & 0x3);
-        //Matrix Store
-        //Get address to which need to store
-        for (uint32_t t = 0; t < num_threads; ++t) 
+        for (uint32_t t = thread_start; t < num_threads; ++t) 
         {
           if (!tmask_.test(t))
             continue;
-          uint32_t base_addr = rsdata[t][0].i;
-          uint32_t mem_addr_arr[SIZE][SIZE];
-        
-          //memory addr array
-          for(int i = 0; i < SIZE; i++){
-            for(int j = 0; j < SIZE; j++){
-              mem_addr_arr[i][j] = base_addr + ((SIZE*i) + j)*4;
-            }
+          uint32_t base_addr = rsdata[t][0].i ;
+          //Store C
+          for (int n=0; n<num_data_per_thread; n++)
+          {
+            //scratchpad -> csr (TODO :: can intermediate step of moving to CSR be skipped?)
+            core_->set_csr(csr_addr[(2*num_data_per_thread) + n], scratchpad[(tc_size*tc_size*2) + (t*num_data_per_thread) + n], t, warp_id_);
+            Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
+            *temp_ref = core_->get_csr(csr_addr[(num_data_per_thread*2) + n], t, warp_id_);
+            //core_->dcache_write(temp_ref, base_addr+(t*num_data_per_thread)+(n*mem_bytes), mem_bytes);
+            core_->dcache_write(temp_ref, base_addr+(n*mem_bytes), mem_bytes);  
           }
-
-          //Write from CSRs to DRAM
-          for(int i = 0; i < SIZE; i++){
-            for(int j = 0; j < SIZE; j++){
-              Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
-              *temp_ref = core_->get_csr(csr_addr[(SIZE*SIZE*2) + (i*SIZE+j)], t, warp_id_);
-              core_->dcache_write(temp_ref, mem_addr_arr[i][j], mem_bytes);  
-              //DP(4, "TCU STORE MEM: ADDRESS=0x" << std::hex << mem_addr_arr[i][j] << ", DATA=0x" << mem_data_arr[i][j]);
-
-            }
-          }
-
-          //DP(4, "STORE MEM: ADDRESS=0x" << std::hex << mem_addr << ", DATA=0x" << mem_data);
         }
-      } break;
-      case 2: { //Matrix Multiply
+      }
+      break;
+      case 2: 
+      { //Matrix Multiply
         DP(4, "TCU MULTIPLY MAT");
         trace->exe_type = ExeType::TCU;
         trace->tcu_type = TCUType::TCU_MUL;
 
-        for (uint32_t t = 0; t < num_threads; ++t) 
+        for (uint32_t t = thread_start; t < num_threads; ++t) 
         {
           if (!tmask_.test(t))
             continue;
-          
-          //TODO - Change to scratchpad
-          uint32_t temp[SIZE*SIZE*3];
-
-          //Moving data into scratchpad
-          for (int i = 0; i < SIZE; i++) 
-          { //ROW-1
-            for (int j = 0; j < SIZE; j++) 
-            { //COL-2
-              temp[i*SIZE+j] = core_->get_csr(csr_addr[(i*SIZE+j)], t, warp_id_);
-              printf("Value of A in MM = %d\n", temp[i*SIZE+j]);
-              printf("Value of A in CSR = %d at %d\n", core_->get_csr(csr_addr[(i*SIZE+j)],t, warp_id_), i*SIZE+j) ;
-
-
-              temp[(SIZE*SIZE)+(i*SIZE+j)] = core_->get_csr(csr_addr[(SIZE*SIZE)+(i*SIZE+j)], t, warp_id_);
-              printf("Value of b in MM = %d\n", temp[(SIZE*SIZE)+(i*SIZE+j)]);
-              printf("Value of b in CSR = %d at %d\n", core_->get_csr(csr_addr[(SIZE*SIZE)+(i*SIZE+j)],t, warp_id_), SIZE*SIZE+i*SIZE+j);
-
-            }
-          }
-
-          //TODO - change to systolic array implementation
-          for (int i = 0; i < SIZE; i++) { //ROW-1
-            for (int j = 0; j < SIZE; j++) { //COL-2
-              int sum = 0;
-              for (int k = 0; k < SIZE; k++){ //COL-1
-                sum = sum + temp[i * SIZE + k] *temp[SIZE*SIZE + (k * SIZE + j)];
+         
+          //TC operation [only 1 thread in 1 warp needs to do this]
+          if (t == 1)
+          {
+            //TODO - change to systolic array implementation
+            for (int i = 0; i < tc_size; i++) { //ROW-1
+              for (int j = 0; j < tc_size; j++) { //COL-2
+                int sum = 0;
+                for (int k = 0; k < tc_size; k++){ //COL-1
+                  sum = sum + scratchpad[i * tc_size + k] *scratchpad[tc_size*tc_size + (k * tc_size + j)];
+                }
+                scratchpad[(tc_size*tc_size*2) + (i * tc_size + j)] = sum; //[i * col2 + j] = sum
               }
-              temp[(SIZE*SIZE*2) + (i * SIZE + j)] = sum; //[i * col2 + j] = sum
-            }
-          }
-
-          //Moving data from scratchpad
-          for (int i = 0; i < SIZE; i++) 
-          { //ROW-1
-            for (int j = 0; j < SIZE; j++) 
-            { //COL-2
-              core_->set_csr(csr_addr[(SIZE*SIZE*2)+ (i*SIZE+j)],temp[(SIZE*SIZE*2)+ (i*SIZE+j)], t, warp_id_);
             }
           }
         }
@@ -2432,17 +2395,26 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     }
   } break;
 
-
   default:
     std::abort();
   }
 
   if (rd_write) {
     trace->wb = true;
-    auto type = instr.getRDType();    
+    auto type = instr.getRDType();
+
+    if (opcode == TCU)
+    {
+      DP (4, "Before RDType" << std::endl);
+      DP (4, "After RDType" << std::endl);  
+      DP (4, "type = " << type << std::endl);  
+    }
+
     switch (type) {
     case RegType::Integer:      
-      if (rdest) {   
+      if (rdest) { 
+        if (opcode == TCU)
+            DPH(2, "TCU PRINT: "); 
         DPH(2, "Dest Reg: " << type << std::dec << rdest << "={");    
         for (uint32_t t = 0; t < num_threads; ++t) {
           if (t) DPN(2, ", ");
