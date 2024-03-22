@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
   //TODO - fix this
   uint32_t num_tasks  = ((matrix_size*matrix_size)/(TC_SIZE*TC_SIZE))*num_threads;
   //4*1*1
-  uint32_t num_points = TC_SIZE * TC_SIZE * matrix_size * num_tasks;
+  uint32_t num_points = TC_SIZE * TC_SIZE;
   //size of each operand
   uint32_t buf_size   = num_points * sizeof(int32_t);
 
