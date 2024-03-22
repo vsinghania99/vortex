@@ -2372,7 +2372,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
             continue;
          
           //TC operation [only 1 thread in 1 warp needs to do this]
-          if (t == 1)
+          if (t == 0)
           {
             //TODO - change to systolic array implementation
             for (int i = 0; i < tc_size; i++) { //ROW-1
