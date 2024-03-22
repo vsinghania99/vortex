@@ -15,9 +15,10 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 
 	//TODO - check if okay to send base address like this?
 	//TODO - make flexible for data types
-	unsigned a_addr_base = a_addr + (((task_id*arg->matrix_size)/arg->num_tasks)*4) ;
-	unsigned b_addr_base = b_addr + (((task_id*arg->matrix_size)/arg->num_tasks)*4) ;
-	unsigned c_addr_base = c_addr + (((task_id*arg->matrix_size)/arg->num_tasks)*4) ;
+	uint32_t matrix_size = arg->matrix_size * arg->matrix_size;
+	unsigned a_addr_base = a_addr + (((task_id*matrix_size)/arg->num_tasks)*4) ;
+	unsigned b_addr_base = b_addr + (((task_id*matrix_size)/arg->num_tasks)*4) ;
+	unsigned c_addr_base = c_addr + (((task_id*matrix_size)/arg->num_tasks)*4) ;
 	
 	mload (0, a_addr_base);
 	mload (1, b_addr_base);
@@ -25,6 +26,7 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	vx_fence();
 
     mm();
+	vx_fence();
 
 	ms(c_addr_base);
 	//In case of multiple threads - sync store

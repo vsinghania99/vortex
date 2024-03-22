@@ -168,7 +168,6 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     trace->exe_type = ExeType::ALU;    
     trace->alu_type = AluType::ARITH;
     trace->used_iregs.set(rsrc0);
-    DP (4, "rsrc0 = " << rsrc0);
     trace->used_iregs.set(rsrc1);
     for (uint32_t t = thread_start; t < num_threads; ++t) {
       if (!tmask_.test(t))
@@ -2297,16 +2296,13 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     }
   } break;  
   case TCU: 
-  { //Tensor core
-    //TODO - change this
-    int SIZE = 2;
-
-    //load memory addresses
-    uint64_t csr_addr[SIZE*SIZE*3] = {VX_MAT_MUL_0,VX_MAT_MUL_1, VX_MAT_MUL_2, VX_MAT_MUL_3, VX_MAT_MUL_4, VX_MAT_MUL_5, VX_MAT_MUL_6, VX_MAT_MUL_7, VX_MAT_MUL_8, VX_MAT_MUL_9, VX_MAT_MUL_10, VX_MAT_MUL_11};
-    //TODO - make it data-type flexible
+  { //TODO - make it data-type flexible
     uint32_t mem_bytes = 1 << (2 & 0x3);
     
     uint16_t tc_size = core_->arch().tc_size();
+    //load memory addresses
+    uint64_t csr_addr[tc_size*tc_size*3] = {VX_MAT_MUL_0,VX_MAT_MUL_1, VX_MAT_MUL_2, VX_MAT_MUL_3, VX_MAT_MUL_4, VX_MAT_MUL_5, VX_MAT_MUL_6, VX_MAT_MUL_7, VX_MAT_MUL_8, VX_MAT_MUL_9, VX_MAT_MUL_10, VX_MAT_MUL_11};
+    
     //TODO - check if this is okay
     //Number of loads - dependant on the thread config
     int num_data_per_thread = (tc_size*tc_size)/num_threads;
@@ -2333,7 +2329,8 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
             //TODO - multiple "mem_bytes" fetch in 1 shot?
             //core_->dcache_read(temp_ref, base_addr+(t*num_data_per_thread)+(n*mem_bytes), mem_bytes);
             core_->dcache_read(temp_ref, (base_addr+(n*mem_bytes)), mem_bytes);
-            core_->set_csr(csr_addr[n + (immsrc*num_data_per_thread)], *temp_ref, t, warp_id_);
+            uint32_t csr_index = n + (immsrc*num_data_per_thread);
+            core_->set_csr(csr_addr[csr_index], *temp_ref, t, warp_id_);
             //csr-> scratchpad (TODO :: can intermediate step of moving to CSR be skipped?)
             scratchpad[(immsrc*tc_size*tc_size) + (t*num_data_per_thread) + n] = core_->get_csr(csr_addr[(immsrc*num_data_per_thread) + n], t, warp_id_);
           }
@@ -2414,7 +2411,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     case RegType::Integer:      
       if (rdest) { 
         if (opcode == TCU)
-            DPH(2, "TCU PRINT: "); 
+          DPH(2, "TCU PRINT: "); 
         DPH(2, "Dest Reg: " << type << std::dec << rdest << "={");    
         for (uint32_t t = 0; t < num_threads; ++t) {
           if (t) DPN(2, ", ");
