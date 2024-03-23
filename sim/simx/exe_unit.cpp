@@ -118,18 +118,31 @@ void LsuUnit::tick() {
         auto& mem_rsp = dcache_rsp_port.front();
         auto& entry = pending_rd_reqs_.at(mem_rsp.tag);          
         auto trace = entry.trace;
+        
+        std::cout << "DEBUG :: mem_rsp.tag = " << mem_rsp.tag << std::endl;
+        if (trace->lsu_type == LsuType::TCU_LOAD)
+            std::cout << "TCU ";
+        std::cout << "DEBUG :: count = " << entry.count << std::endl;
+        
         DT(3, "dcache-rsp: tag=" << mem_rsp.tag << ", type=" << trace->lsu_type 
             << ", tid=" << t << ", " << *trace);  
         assert(entry.count);
         --entry.count; // track remaining addresses 
+        //pending_rd_reqs_.at(mem_rsp.tag).count = entry.count;
+
+        std::cout << "DEBUG :: count after reduction = " << pending_rd_reqs_.at(mem_rsp.tag).count << std::endl;
+
         if (0 == entry.count) {
+            if (trace->lsu_type == LsuType::TCU_LOAD)
+                std::cout << "TCU DEBUG :: entry.count = 0." << std::endl;
             int iw = trace->wid % ISSUE_WIDTH;
             auto& output = Outputs.at(iw);
             output.send(trace, 1);
             pending_rd_reqs_.release(mem_rsp.tag);
+            dcache_rsp_port.pop();
+            --pending_loads_;
         } 
-        dcache_rsp_port.pop();
-        --pending_loads_;
+        
     }
 
     // handle shared memory response
@@ -220,6 +233,13 @@ void LsuUnit::tick() {
             addr_count = 1;
         } else {
             addr_count = trace->tmask.count();
+        }
+        //fix this
+        uint16_t loads_per_thread = 4;
+
+        if (trace->lsu_type == LsuType::TCU_LOAD)
+        {
+            addr_count = addr_count*(loads_per_thread);
         }
 
         auto tag = pending_rd_reqs_.allocate({trace, addr_count});

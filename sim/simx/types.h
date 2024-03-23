@@ -124,6 +124,7 @@ inline std::ostream &operator<<(std::ostream &os, const AluType& type) {
 
 enum class LsuType {
   LOAD,
+  TCU_LOAD,
   STORE,
   FENCE
 };
@@ -147,6 +148,7 @@ inline std::ostream &operator<<(std::ostream &os, const TCUType& type) {
 inline std::ostream &operator<<(std::ostream &os, const LsuType& type) {
   switch (type) {
   case LsuType::LOAD:  os << "LOAD"; break;
+  case LsuType::TCU_LOAD: os << "TCU_LOAD"; break;
   case LsuType::STORE: os << "STORE"; break;
   case LsuType::FENCE: os << "FENCE"; break;
   default: assert(false);

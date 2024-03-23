@@ -17,7 +17,9 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	//TODO - make flexible for data types
 	uint32_t matrix_size = arg->matrix_size * arg->matrix_size;
 	unsigned a_addr_base = a_addr + (((task_id*matrix_size)/arg->num_tasks)*4) ;
+	vx_printf("a_addr_base = %x\n", a_addr_base);
 	unsigned b_addr_base = b_addr + (((task_id*matrix_size)/arg->num_tasks)*4) ;
+	vx_printf("b_addr_base = %x\n", b_addr_base);
 	unsigned c_addr_base = c_addr + (((task_id*matrix_size)/arg->num_tasks)*4) ;
 	
 	mload (0, a_addr_base);
