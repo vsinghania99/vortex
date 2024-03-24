@@ -2313,16 +2313,14 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     //load memory addresses
     uint64_t csr_addr[tc_size*tc_size*3] = {VX_MAT_MUL_0,VX_MAT_MUL_1, VX_MAT_MUL_2, VX_MAT_MUL_3, VX_MAT_MUL_4, VX_MAT_MUL_5, VX_MAT_MUL_6, VX_MAT_MUL_7, VX_MAT_MUL_8, VX_MAT_MUL_9, VX_MAT_MUL_10, VX_MAT_MUL_11};
     
-    //TODO - check if this is okay
     //Number of loads - dependant on the thread config
     int num_data_per_thread = (tc_size*tc_size)/num_threads;
 
     switch (func3) {
       case 0: 
       { //Matrix Load  
-        std::cout << "TCU LOAD" << std::endl;
-        //trace->exe_type = ExeType::TCU;
-        //trace->tcu_type = TCUType::TCU_LOAD;
+
+        DP (4, "TCU LOAD");
         trace->exe_type = ExeType::LSU;
         trace->lsu_type = LsuType::TCU_LOAD;
         
@@ -2331,7 +2329,6 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
         trace->data = trace_data;
         uint32_t mem_bytes = 4; //every element is a 4 byte integer
         uint32_t data_bytes = mem_bytes*num_data_per_thread;
-        uint32_t data_width = data_bytes*8;
         
         for (uint32_t t = thread_start; t < num_threads; ++t) 
         {
@@ -2339,9 +2336,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
             continue;
           uint64_t base_addr = rsdata[t][0].i ;
           //Load A or B (depends on immsrc)
-          
           trace_data->mem_addrs.at(t) = {base_addr, data_bytes};
-          //Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
           uint64_t read_data = 0;
 
           for (int n=0; n<num_data_per_thread; n++)
@@ -2353,28 +2348,6 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
             core_->set_csr(csr_addr[csr_index], read_data, t, warp_id_);
             scratchpad[(immsrc*tc_size*tc_size) + (t*num_data_per_thread) + n] = core_->get_csr(csr_addr[(immsrc*num_data_per_thread) + n], t, warp_id_);
           }  
-          //  
-            //TODO - multiple "mem_bytes" fetch in 1 shot?
-            //core_->dcache_read(temp_ref, base_addr+(t*num_data_per_thread)+(n*mem_bytes), mem_bytes);
-            //core_->dcache_read(temp_ref, base_addr, data_bytes);
-            //core_->dcache_read(temp_ref, mem_addr, mem_bytes);
-            
-            std::cout << "TC :: Data read = " << read_data << std::endl;
-            std::cout << "TC :: Addr read = " << base_addr << std::endl;
-
-          /*
-          for (int n=0; n<num_data_per_thread; n++)
-          { 
-            Word masked_value = 0xFFFF &  (*temp_ref);
-            *temp_ref = (*temp_ref) >> 32; //TODO - fix this
-            //TODO : Need to account for this in perf model
-            uint32_t csr_index = n + (immsrc*num_data_per_thread);
-            core_->set_csr(csr_addr[csr_index], *temp_ref, t, warp_id_);
-            std::cout << "TC :: Data after shifting = " << *temp_ref << std::endl;
-            //csr-> scratchpad (TODO :: can intermediate step of moving to CSR be skipped?)
-            scratchpad[(immsrc*tc_size*tc_size) + (t*num_data_per_thread) + n] = core_->get_csr(csr_addr[(immsrc*num_data_per_thread) + n], t, warp_id_);
-          }
-          */
         }
         rd_write = true;  
       } break;

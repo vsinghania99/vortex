@@ -234,8 +234,9 @@ void LsuUnit::tick() {
         } else {
             addr_count = trace->tmask.count();
         }
-        //fix this
-        uint16_t loads_per_thread = 4;
+        //Assumption : each load = 4B
+        //size for all threads are equal {size = num_loads_per_thread*4 ; passed from execute.cpp}
+        uint16_t loads_per_thread = (trace_data->mem_addrs.at(0 + t0).size)/4;
 
         if (trace->lsu_type == LsuType::TCU_LOAD)
         {
