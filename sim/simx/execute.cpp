@@ -666,12 +666,6 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
         uint64_t read_data = 0;
         core_->dcache_read(&read_data, mem_addr, data_bytes);
         trace_data->mem_addrs.at(t) = {mem_addr, data_bytes};
-        std::cout << "LOAD :: func3 = " << func3 << std::endl;
-        std::cout << "LOAD :: data_bytes = " << data_bytes << std::endl;
-        std::cout << "TID = " << t << "; ADDR = " << mem_addr << std::endl;
-        std::cout << "LOAD :: data_width = " << data_width << std::endl;
-        
-        
         switch (func3) {
         case 0: // RV32I: LB
         case 1: // RV32I: LH
@@ -2307,7 +2301,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
   } break;  
   case TCU: 
   { //TODO - make it data-type flexible
-    uint32_t mem_bytes = 1 << (2 & 0x3);
+    uint32_t mem_bytes = 4; //every element is a 4 byte integer
     
     uint16_t tc_size = core_->arch().tc_size();
     //load memory addresses
@@ -2327,9 +2321,8 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
         trace->used_iregs.set(rsrc0);
         auto trace_data = std::make_shared<LsuTraceData>(num_threads);
         trace->data = trace_data;
-        uint32_t mem_bytes = 4; //every element is a 4 byte integer
         uint32_t data_bytes = mem_bytes*num_data_per_thread;
-        
+        std::cout << ""
         for (uint32_t t = thread_start; t < num_threads; ++t) 
         {
           if (!tmask_.test(t))
@@ -2354,23 +2347,36 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
       case 1: 
       { 
         DP(4, "TCU STORE");
-        trace->exe_type = ExeType::TCU;
-        trace->tcu_type = TCUType::TCU_STORE;
+        //trace->exe_type = ExeType::TCU;
+        //trace->tcu_type = TCUType::TCU_STORE;
+        trace->exe_type = ExeType::LSU;
+        trace->lsu_type = LsuType::TCU_STORE;
+
+        //trace->used_iregs.set(rsrc0);
+        auto trace_data = std::make_shared<LsuTraceData>(num_threads);
+        trace->data = trace_data;
+        uint32_t data_bytes = mem_bytes*num_data_per_thread;
 
         for (uint32_t t = thread_start; t < num_threads; ++t) 
         {
           if (!tmask_.test(t))
             continue;
           uint32_t base_addr = rsdata[t][0].i ;
+
+          trace_data->mem_addrs.at(t) = {base_addr, data_bytes};
+          uint64_t write_data = 0;
+
           //Store C
           for (int n=0; n<num_data_per_thread; n++)
           {
+            uint64_t mem_addr = (base_addr+(n*mem_bytes));
+            uint32_t csr_index = (2*num_data_per_thread) + n;
+            uint32_t scratchpad_index = (tc_size*tc_size*2) + (t*num_data_per_thread) + n;
+            
             //scratchpad -> csr (TODO :: can intermediate step of moving to CSR be skipped?)
-            core_->set_csr(csr_addr[(2*num_data_per_thread) + n], scratchpad[(tc_size*tc_size*2) + (t*num_data_per_thread) + n], t, warp_id_);
-            Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
-            *temp_ref = core_->get_csr(csr_addr[(num_data_per_thread*2) + n], t, warp_id_);
-            //core_->dcache_write(temp_ref, base_addr+(t*num_data_per_thread)+(n*mem_bytes), mem_bytes);
-            core_->dcache_write(temp_ref, base_addr+(n*mem_bytes), mem_bytes);  
+            core_->set_csr(csr_addr[csr_index], scratchpad[scratchpad_index], t, warp_id_);
+            write_data = core_->get_csr(csr_addr[(num_data_per_thread*2) + n], t, warp_id_);
+            core_->dcache_write(&write_data, mem_addr, mem_bytes);  
           }
         }
       }

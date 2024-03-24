@@ -404,9 +404,6 @@ void Core::commit() {
       perf_stats_.instrs += trace->tmask.count();
     }
 
-    std::cout << "perf_stats_.instrs = " << perf_stats_.instrs << std::endl;
-    std::cout << "perf_stats_.cycles = " << perf_stats_.cycles << std::endl;
-    
     commit_arb->Outputs.at(0).pop();
 
     // delete the trace

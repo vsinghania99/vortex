@@ -126,6 +126,7 @@ enum class LsuType {
   LOAD,
   TCU_LOAD,
   STORE,
+  TCU_STORE,
   FENCE
 };
 
@@ -150,6 +151,7 @@ inline std::ostream &operator<<(std::ostream &os, const LsuType& type) {
   case LsuType::LOAD:  os << "LOAD"; break;
   case LsuType::TCU_LOAD: os << "TCU_LOAD"; break;
   case LsuType::STORE: os << "STORE"; break;
+  case LsuType::TCU_STORE: os << "TCU_STORE"; break;
   case LsuType::FENCE: os << "FENCE"; break;
   default: assert(false);
   }

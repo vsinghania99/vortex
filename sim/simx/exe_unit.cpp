@@ -119,22 +119,13 @@ void LsuUnit::tick() {
         auto& entry = pending_rd_reqs_.at(mem_rsp.tag);          
         auto trace = entry.trace;
         
-        std::cout << "DEBUG :: mem_rsp.tag = " << mem_rsp.tag << std::endl;
-        if (trace->lsu_type == LsuType::TCU_LOAD)
-            std::cout << "TCU ";
-        std::cout << "DEBUG :: count = " << entry.count << std::endl;
-        
         DT(3, "dcache-rsp: tag=" << mem_rsp.tag << ", type=" << trace->lsu_type 
             << ", tid=" << t << ", " << *trace);  
         assert(entry.count);
         --entry.count; // track remaining addresses 
         //pending_rd_reqs_.at(mem_rsp.tag).count = entry.count;
 
-        std::cout << "DEBUG :: count after reduction = " << pending_rd_reqs_.at(mem_rsp.tag).count << std::endl;
-
         if (0 == entry.count) {
-            if (trace->lsu_type == LsuType::TCU_LOAD)
-                std::cout << "TCU DEBUG :: entry.count = 0." << std::endl;
             int iw = trace->wid % ISSUE_WIDTH;
             auto& output = Outputs.at(iw);
             output.send(trace, 1);
@@ -209,19 +200,25 @@ void LsuUnit::tick() {
             trace->log_once(false);
         }
         
-        bool is_write = (trace->lsu_type == LsuType::STORE);
+        bool is_write = (trace->lsu_type == LsuType::STORE) || (trace->lsu_type == LsuType::TCU_STORE);
 
         // duplicates detection
         bool is_dup = false;
         if (trace->tmask.test(t0)) {
             uint64_t addr_mask = sizeof(uint32_t)-1;
             uint32_t addr0 = trace_data->mem_addrs.at(0).addr & ~addr_mask;
+            if ((trace->lsu_type == LsuType::TCU_LOAD) || (trace->lsu_type == LsuType::TCU_STORE))
+                std::cout << "here." << std::endl;
             uint32_t matches = 1;
             for (uint32_t t = 1; t < num_lanes_; ++t) {
+                if ((trace->lsu_type == LsuType::TCU_LOAD) || (trace->lsu_type == LsuType::TCU_STORE))
+                    std::cout << "Inside num_lanes loop - start" << std::endl;
                 if (!trace->tmask.test(t0 + t))
                     continue;
                 auto mem_addr = trace_data->mem_addrs.at(t + t0).addr & ~addr_mask;
                 matches += (addr0 == mem_addr);
+                if ((trace->lsu_type == LsuType::TCU_LOAD) || (trace->lsu_type == LsuType::TCU_STORE))
+                    std::cout << "Inside num_lanes loop - end" << std::endl;
             }
         #ifdef LSU_DUP_ENABLE
             is_dup = (matches == trace->tmask.count());
@@ -231,16 +228,18 @@ void LsuUnit::tick() {
         uint32_t addr_count;
         if (is_dup) {
             addr_count = 1;
+            if ((trace->lsu_type == LsuType::TCU_LOAD) || (trace->lsu_type == LsuType::TCU_STORE))
+                std::cout << "TCU DEGUG :: HERE?" << std::endl;
         } else {
             addr_count = trace->tmask.count();
         }
         //Assumption : each load = 4B
-        //size for all threads are equal {size = num_loads_per_thread*4 ; passed from execute.cpp}
-        uint16_t loads_per_thread = (trace_data->mem_addrs.at(0 + t0).size)/4;
+        //size for all threads are equal {size = num_data_per_thread*4 ; passed from execute.cpp}
+        uint16_t data_per_thread = (trace_data->mem_addrs.at(0 + t0).size)/4;
 
-        if (trace->lsu_type == LsuType::TCU_LOAD)
+        if ((trace->lsu_type == LsuType::TCU_LOAD) || (trace->lsu_type == LsuType::TCU_STORE))
         {
-            addr_count = addr_count*(loads_per_thread);
+            addr_count = addr_count*(data_per_thread);
         }
 
         auto tag = pending_rd_reqs_.allocate({trace, addr_count});
@@ -267,9 +266,17 @@ void LsuUnit::tick() {
 
             if (is_write) {
                 ++core_->perf_stats_.stores;
+                if (trace->lsu_type == LsuType::TCU_STORE)
+                {
+                    std::cout << "TCU DEBUG :: core_->perf_stats_.stores = " << core_->perf_stats_.stores << std::endl;
+                }
             } else {                
                 ++core_->perf_stats_.loads;
                 ++pending_loads_;
+                if (trace->lsu_type == LsuType::TCU_LOAD)
+                {
+                    std::cout << "TCU DEBUG :: core_->perf_stats_.loads = " << core_->perf_stats_.loads << std::endl;
+                }
             }
             if (is_dup)
                 break;
