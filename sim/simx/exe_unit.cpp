@@ -118,7 +118,6 @@ void LsuUnit::tick() {
         auto& mem_rsp = dcache_rsp_port.front();
         auto& entry = pending_rd_reqs_.at(mem_rsp.tag);          
         auto trace = entry.trace;
-        
         DT(3, "dcache-rsp: tag=" << mem_rsp.tag << ", type=" << trace->lsu_type 
             << ", tid=" << t << ", " << *trace);  
         assert(entry.count);
@@ -130,10 +129,9 @@ void LsuUnit::tick() {
             auto& output = Outputs.at(iw);
             output.send(trace, 1);
             pending_rd_reqs_.release(mem_rsp.tag);
-            dcache_rsp_port.pop();
-            --pending_loads_;
         } 
-        
+        dcache_rsp_port.pop();
+        --pending_loads_;
     }
 
     // handle shared memory response
@@ -200,25 +198,19 @@ void LsuUnit::tick() {
             trace->log_once(false);
         }
         
-        bool is_write = (trace->lsu_type == LsuType::STORE) || (trace->lsu_type == LsuType::TCU_STORE);
+        bool is_write = ((trace->lsu_type == LsuType::STORE) || (trace->lsu_type == LsuType::TCU_STORE));
 
         // duplicates detection
         bool is_dup = false;
         if (trace->tmask.test(t0)) {
             uint64_t addr_mask = sizeof(uint32_t)-1;
             uint32_t addr0 = trace_data->mem_addrs.at(0).addr & ~addr_mask;
-            if ((trace->lsu_type == LsuType::TCU_LOAD) || (trace->lsu_type == LsuType::TCU_STORE))
-                std::cout << "here." << std::endl;
             uint32_t matches = 1;
             for (uint32_t t = 1; t < num_lanes_; ++t) {
-                if ((trace->lsu_type == LsuType::TCU_LOAD) || (trace->lsu_type == LsuType::TCU_STORE))
-                    std::cout << "Inside num_lanes loop - start" << std::endl;
                 if (!trace->tmask.test(t0 + t))
                     continue;
                 auto mem_addr = trace_data->mem_addrs.at(t + t0).addr & ~addr_mask;
                 matches += (addr0 == mem_addr);
-                if ((trace->lsu_type == LsuType::TCU_LOAD) || (trace->lsu_type == LsuType::TCU_STORE))
-                    std::cout << "Inside num_lanes loop - end" << std::endl;
             }
         #ifdef LSU_DUP_ENABLE
             is_dup = (matches == trace->tmask.count());
@@ -228,18 +220,16 @@ void LsuUnit::tick() {
         uint32_t addr_count;
         if (is_dup) {
             addr_count = 1;
-            if ((trace->lsu_type == LsuType::TCU_LOAD) || (trace->lsu_type == LsuType::TCU_STORE))
-                std::cout << "TCU DEGUG :: HERE?" << std::endl;
         } else {
             addr_count = trace->tmask.count();
         }
         //Assumption : each load = 4B
         //size for all threads are equal {size = num_data_per_thread*4 ; passed from execute.cpp}
-        uint16_t data_per_thread = (trace_data->mem_addrs.at(0 + t0).size)/4;
+        uint16_t req_per_thread = (trace_data->mem_addrs.at(0 + t0).size)/4;
 
         if ((trace->lsu_type == LsuType::TCU_LOAD) || (trace->lsu_type == LsuType::TCU_STORE))
         {
-            addr_count = addr_count*(data_per_thread);
+            addr_count = addr_count*(req_per_thread);
         }
 
         auto tag = pending_rd_reqs_.allocate({trace, addr_count});
@@ -252,30 +242,49 @@ void LsuUnit::tick() {
             auto mem_addr = trace_data->mem_addrs.at(t + t0);
             auto type = core_->get_addr_type(mem_addr.addr);
 
-            MemReq mem_req;
-            mem_req.addr  = mem_addr.addr;
-            mem_req.write = is_write;
-            mem_req.type  = type; 
-            mem_req.tag   = tag;
-            mem_req.cid   = trace->cid;
-            mem_req.uuid  = trace->uuid;        
+            if ((trace->lsu_type == LsuType::TCU_LOAD) || (trace->lsu_type == LsuType::TCU_STORE))
+            {
+                for (int i = 0; i < req_per_thread; i++)
+                {
+                    MemReq mem_req;
+                    mem_req.addr  = mem_addr.addr + i*4;
+                    mem_req.write = is_write;
+                    mem_req.type  = type; 
+                    mem_req.tag   = tag;
+                    mem_req.cid   = trace->cid;
+                    mem_req.uuid  = trace->uuid;        
+                        
+                    dcache_req_port.send(mem_req, 1);
+                    DT(3, "dcache-req: addr=0x" << std::hex << mem_req.addr << ", tag=" << tag 
+                        << ", lsu_type=" << trace->lsu_type << ", tid=" << t << ", addr_type=" << mem_req.type << ", " << *trace);
                 
-            dcache_req_port.send(mem_req, 1);
-            DT(3, "dcache-req: addr=0x" << std::hex << mem_req.addr << ", tag=" << tag 
-                << ", lsu_type=" << trace->lsu_type << ", tid=" << t << ", addr_type=" << mem_req.type << ", " << *trace);
-
-            if (is_write) {
-                ++core_->perf_stats_.stores;
-                if (trace->lsu_type == LsuType::TCU_STORE)
-                {
-                    std::cout << "TCU DEBUG :: core_->perf_stats_.stores = " << core_->perf_stats_.stores << std::endl;
+                    if (is_write) {
+                        ++core_->perf_stats_.stores;
+                    } else {                
+                        ++core_->perf_stats_.loads;
+                        ++pending_loads_;
+                    }
                 }
-            } else {                
-                ++core_->perf_stats_.loads;
-                ++pending_loads_;
-                if (trace->lsu_type == LsuType::TCU_LOAD)
-                {
-                    std::cout << "TCU DEBUG :: core_->perf_stats_.loads = " << core_->perf_stats_.loads << std::endl;
+            }
+            else
+            {
+                MemReq mem_req;
+                    mem_req.addr  = mem_addr.addr;
+                    mem_req.write = is_write;
+                    mem_req.type  = type; 
+                    mem_req.tag   = tag;
+                    mem_req.cid   = trace->cid;
+                    mem_req.uuid  = trace->uuid;        
+                        
+                    dcache_req_port.send(mem_req, 1);
+                    DT(3, "dcache-req: addr=0x" << std::hex << mem_req.addr << ", tag=" << tag 
+                        << ", lsu_type=" << trace->lsu_type << ", tid=" << t << ", addr_type=" << mem_req.type << ", " << *trace);
+            
+                if (is_write) {
+                    ++core_->perf_stats_.stores;
+                } else {                
+                    ++core_->perf_stats_.loads;
+                    ++pending_loads_;
                 }
             }
             if (is_dup)

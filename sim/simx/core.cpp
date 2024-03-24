@@ -99,6 +99,7 @@ Core::Core(const SimContext& ctx,
     smem_demuxs_.at(i) = smem_demux;
   }
 
+  // Arch& arch,  buf_size, block_size, num_lanes
   // initialize dispatchers
   dispatchers_.at((int)ExeType::ALU) = SimPlatform::instance().create_object<Dispatcher>(arch, 2, NUM_ALU_BLOCKS, NUM_ALU_LANES);
   dispatchers_.at((int)ExeType::FPU) = SimPlatform::instance().create_object<Dispatcher>(arch, 2, NUM_FPU_BLOCKS, NUM_FPU_LANES);

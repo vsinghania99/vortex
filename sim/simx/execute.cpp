@@ -2322,7 +2322,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
         auto trace_data = std::make_shared<LsuTraceData>(num_threads);
         trace->data = trace_data;
         uint32_t data_bytes = mem_bytes*num_data_per_thread;
-        std::cout << ""
+        //std::cout << ""
         for (uint32_t t = thread_start; t < num_threads; ++t) 
         {
           if (!tmask_.test(t))
