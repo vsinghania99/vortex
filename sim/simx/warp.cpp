@@ -30,7 +30,7 @@ Warp::Warp(Core *core, uint32_t warp_id)
     , ireg_file_(core->arch().num_threads(), std::vector<Word>(core->arch().num_regs()))
     , freg_file_(core->arch().num_threads(), std::vector<uint64_t>(core->arch().num_regs()))
     , vreg_file_(core->arch().num_threads(), std::vector<Byte>(core->arch().vsize()))
-    , scratchpad(std::vector<Word>(core->arch().tc_size() * core->arch().tc_size() * 3))
+    , scratchpad(std::vector<Word>(core->arch().tc_size() * core->arch().tc_size() * 100)) //Fix this
 {
   this->reset();
 }
@@ -70,6 +70,7 @@ pipeline_trace_t* Warp::eval() {
   uint32_t instr_id  = instr_uuid & 0xffff;
   uint32_t instr_ref = instr_uuid >> 16;
   uint64_t uuid = (uint64_t(instr_ref) << 32) | (g_wid << 16) | instr_id;
+  DPH(1, "DBG: instr_uuid=" << instr_uuid << ", g_wid=" << g_wid << ", intr_ref=" << instr_ref << std::endl);
 #else
   uint64_t uuid = 0;
 #endif

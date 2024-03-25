@@ -605,6 +605,8 @@ uint32_t Core::get_csr(uint32_t addr, uint32_t tid, uint32_t wid) {
     return tcore_csrs_[wid][tid].at(VX_MAT_MUL_10);
   case VX_MAT_MUL_11:
     return tcore_csrs_[wid][tid].at(VX_MAT_MUL_11);
+  case VX_MAT_MUL_SIZE:
+    return mat_size;
   default:
     if ((addr >= VX_CSR_MPM_BASE && addr < (VX_CSR_MPM_BASE + 32))
      || (addr >= VX_CSR_MPM_BASE_H && addr < (VX_CSR_MPM_BASE_H + 32))) {
@@ -751,51 +753,66 @@ void Core::set_csr(uint32_t addr, uint32_t value, uint32_t tid, uint32_t wid) {
     break;
   case VX_MAT_MUL_0:
     value = (value & 0xFFFF);
-    tcore_csrs_[wid][tid].insert({VX_MAT_MUL_0, value});
+    tcore_csrs_[wid][tid][VX_MAT_MUL_0] = value;
+    //tcore_csrs_[wid][tid].insert({VX_MAT_MUL_0, value});
     break;
   case VX_MAT_MUL_1:
     value = (value & 0xFFFF);
-    tcore_csrs_[wid][tid].insert({VX_MAT_MUL_1, value});
+    tcore_csrs_[wid][tid][VX_MAT_MUL_1] = value;
+    //tcore_csrs_[wid][tid].insert({VX_MAT_MUL_1, value});
     break;
   case VX_MAT_MUL_2:
     value = (value & 0xFFFF);
-    tcore_csrs_[wid][tid].insert({VX_MAT_MUL_2, value});
+    tcore_csrs_[wid][tid][VX_MAT_MUL_2] = value;
+    //tcore_csrs_[wid][tid].insert({VX_MAT_MUL_2, value});
     break;
   case VX_MAT_MUL_3:
     value = (value & 0xFFFF);
-    tcore_csrs_[wid][tid].insert({VX_MAT_MUL_3, value});
+    tcore_csrs_[wid][tid][VX_MAT_MUL_3] = value;
+    //tcore_csrs_[wid][tid].insert({VX_MAT_MUL_3, value});
     break;
   case VX_MAT_MUL_4:
     value = (value & 0xFFFF);
-    tcore_csrs_[wid][tid].insert({VX_MAT_MUL_4, value});
+    tcore_csrs_[wid][tid][VX_MAT_MUL_4] = value;
+    //tcore_csrs_[wid][tid].insert({VX_MAT_MUL_4, value});
     break;
   case VX_MAT_MUL_5:
     value = (value & 0xFFFF);
-    tcore_csrs_[wid][tid].insert({VX_MAT_MUL_5, value});
+    tcore_csrs_[wid][tid][VX_MAT_MUL_5] = value;
+    //tcore_csrs_[wid][tid].insert({VX_MAT_MUL_5, value});
     break;
   case VX_MAT_MUL_6:
     value = (value & 0xFFFF);
-    tcore_csrs_[wid][tid].insert({VX_MAT_MUL_6, value});
+    tcore_csrs_[wid][tid][VX_MAT_MUL_6] = value;
+    //tcore_csrs_[wid][tid].insert({VX_MAT_MUL_6, value});
     break;
   case VX_MAT_MUL_7:
     value = (value & 0xFFFF);
-    tcore_csrs_[wid][tid].insert({VX_MAT_MUL_7, value});
+    tcore_csrs_[wid][tid][VX_MAT_MUL_7] = value;
+    //tcore_csrs_[wid][tid].insert({VX_MAT_MUL_7, value});
     break;
   case VX_MAT_MUL_8:
     value = (value & 0xFFFF);
-    tcore_csrs_[wid][tid].insert({VX_MAT_MUL_8, value});
+    tcore_csrs_[wid][tid][VX_MAT_MUL_8] = value;
+    //tcore_csrs_[wid][tid].insert({VX_MAT_MUL_8, value});
     break;
   case VX_MAT_MUL_9:
     value = (value & 0xFFFF);
-    tcore_csrs_[wid][tid].insert({VX_MAT_MUL_9, value});
+    tcore_csrs_[wid][tid][VX_MAT_MUL_9] = value;
+    //tcore_csrs_[wid][tid].insert({VX_MAT_MUL_9, value});
     break;
   case VX_MAT_MUL_10:
     value = (value & 0xFFFF);
-    tcore_csrs_[wid][tid].insert({VX_MAT_MUL_10, value});
+    tcore_csrs_[wid][tid][VX_MAT_MUL_10] = value;
+    //tcore_csrs_[wid][tid].insert({VX_MAT_MUL_10, value});
     break;
   case VX_MAT_MUL_11:
     value = (value & 0xFFFF);
-    tcore_csrs_[wid][tid].insert({VX_MAT_MUL_11, value});
+    tcore_csrs_[wid][tid][VX_MAT_MUL_11] = value;
+    //tcore_csrs_[wid][tid].insert({VX_MAT_MUL_11, value});
+    break;
+  case VX_MAT_MUL_SIZE:
+    mat_size = value;
     break;
   default:
     {

@@ -235,6 +235,7 @@ inline void ms(unsigned  addr)
 }
 
 //mat mul
+//num tiles along reduced K dimension of matmul as imm value (can use rd,rs field to expand range of n_tiles from 12 bits)
 inline void mm() 
 {
     asm volatile (".insn i 0x7b, 2, x0, 0(x0)");

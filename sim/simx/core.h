@@ -200,7 +200,8 @@ private:
 
   std::vector<std::vector<CSRs>> csrs_;
   std::vector<std::vector<CSRs>> tcore_csrs_;
-  
+  uint32_t mat_size;
+
   PerfStats perf_stats_;
   
   std::vector<TraceSwitch::Ptr> commit_arbs_;

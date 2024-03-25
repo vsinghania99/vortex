@@ -5,6 +5,6 @@ SRCS = main.cpp
 VX_SRCS = kernel.cpp
 
 #TODO - need to fix this
-OPTS ?= -n2
+OPTS ?= -n4
 
 include ../common.mk

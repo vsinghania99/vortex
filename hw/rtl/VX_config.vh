@@ -90,6 +90,10 @@
 `define NUM_THREADS 4
 `endif
 
+`ifndef MATRIX_SIZE
+`define MATRIX_SIZE 4
+`endif
+
 `ifndef NUM_BARRIERS
 `define NUM_BARRIERS 4
 `endif

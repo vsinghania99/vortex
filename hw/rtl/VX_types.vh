@@ -197,5 +197,6 @@
 `define VX_MAT_MUL_9                    12'hFCC
 `define VX_MAT_MUL_10                   12'hFCD
 `define VX_MAT_MUL_11                   12'hFCE
+`define VX_MAT_MUL_SIZE                 12'hFCF
 
 `endif // VX_TYPES_VH
