@@ -324,12 +324,6 @@ void TcuUnit::tick() {
         auto& output = Outputs.at(i);
         auto trace = input.front();
         switch (trace->tcu_type) {
-        case TCUType::TCU_LOAD:
-            output.send(trace, 2);
-            break;
-        case TCUType::TCU_STORE:
-            output.send(trace, 2);
-            break;
         case TCUType::TCU_MUL:
             output.send(trace, 2);
             break;

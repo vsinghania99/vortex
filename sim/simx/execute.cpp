@@ -2309,7 +2309,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     uint32_t mem_bytes = 4; //every element is a 4 byte integer
     //Number of loads - dependant on the thread config
     //TODO - fix this after bigger matrices are enabled
-    int matrix_size = 4;
+    int matrix_size = 2;
     int num_tiles_per_side = matrix_size/tc_size;
     int num_data_per_thread = ((tc_size*tc_size)*num_tiles_per_side)/num_threads;
     uint32_t data_bytes_load = mem_bytes*num_data_per_thread;
@@ -2335,9 +2335,10 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
           //Load A or B (depends on immsrc)
           trace_data->mem_addrs.at(t) = {base_addr, data_bytes_load};
           uint64_t read_data = 0;
-
+          
           for (int n=0; n<num_data_per_thread; n++)
           {
+            std::cout << "n = " << n << std::endl;
             uint64_t mem_addr = (base_addr+(n*mem_bytes));
             //Always reads 4 bytes of data only (max for XLEN=32)
             core_->dcache_read(&read_data, mem_addr, mem_bytes);
