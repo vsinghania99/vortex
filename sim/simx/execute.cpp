@@ -2300,16 +2300,21 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     }
   } break;  
   case TCU: 
-  { //TODO - make it data-type flexible
-    uint32_t mem_bytes = 4; //every element is a 4 byte integer
-    
+  { 
     uint16_t tc_size = core_->arch().tc_size();
     //load memory addresses
     uint64_t csr_addr[tc_size*tc_size*3] = {VX_MAT_MUL_0,VX_MAT_MUL_1, VX_MAT_MUL_2, VX_MAT_MUL_3, VX_MAT_MUL_4, VX_MAT_MUL_5, VX_MAT_MUL_6, VX_MAT_MUL_7, VX_MAT_MUL_8, VX_MAT_MUL_9, VX_MAT_MUL_10, VX_MAT_MUL_11};
     
+    //TODO - make it data-type flexible
+    uint32_t mem_bytes = 4; //every element is a 4 byte integer
     //Number of loads - dependant on the thread config
-    int num_data_per_thread = (tc_size*tc_size)/num_threads;
-
+    //TODO - fix this after bigger matrices are enabled
+    int matrix_size = 4;
+    int num_tiles_per_side = matrix_size/tc_size;
+    int num_data_per_thread = ((tc_size*tc_size)*num_tiles_per_side)/num_threads;
+    uint32_t data_bytes_load = mem_bytes*num_data_per_thread;
+    uint32_t data_bytes_store = (mem_bytes*num_data_per_thread)/num_tiles_per_side;
+    
     switch (func3) {
       case 0: 
       { //Matrix Load  
@@ -2321,15 +2326,14 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
         trace->used_iregs.set(rsrc0);
         auto trace_data = std::make_shared<LsuTraceData>(num_threads);
         trace->data = trace_data;
-        uint32_t data_bytes = mem_bytes*num_data_per_thread;
-        //std::cout << ""
+        
         for (uint32_t t = thread_start; t < num_threads; ++t) 
         {
           if (!tmask_.test(t))
             continue;
           uint64_t base_addr = rsdata[t][0].i ;
           //Load A or B (depends on immsrc)
-          trace_data->mem_addrs.at(t) = {base_addr, data_bytes};
+          trace_data->mem_addrs.at(t) = {base_addr, data_bytes_load};
           uint64_t read_data = 0;
 
           for (int n=0; n<num_data_per_thread; n++)
@@ -2347,23 +2351,20 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
       case 1: 
       { 
         DP(4, "TCU STORE");
-        //trace->exe_type = ExeType::TCU;
-        //trace->tcu_type = TCUType::TCU_STORE;
         trace->exe_type = ExeType::LSU;
         trace->lsu_type = LsuType::TCU_STORE;
 
         //trace->used_iregs.set(rsrc0);
         auto trace_data = std::make_shared<LsuTraceData>(num_threads);
         trace->data = trace_data;
-        uint32_t data_bytes = mem_bytes*num_data_per_thread;
-
+        
         for (uint32_t t = thread_start; t < num_threads; ++t) 
         {
           if (!tmask_.test(t))
             continue;
           uint32_t base_addr = rsdata[t][0].i ;
 
-          trace_data->mem_addrs.at(t) = {base_addr, data_bytes};
+          trace_data->mem_addrs.at(t) = {base_addr, data_bytes_store};
           uint64_t write_data = 0;
 
           //Store C

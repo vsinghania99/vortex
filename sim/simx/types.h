@@ -131,15 +131,11 @@ enum class LsuType {
 };
 
 enum class TCUType {
-  TCU_LOAD,
-  TCU_STORE,
   TCU_MUL
 };
 
 inline std::ostream &operator<<(std::ostream &os, const TCUType& type) {
   switch (type) {
-  case TCUType::TCU_LOAD:  os << "TCU LOAD"; break;
-  case TCUType::TCU_STORE: os << "TCU STORE"; break;
   case TCUType::TCU_MUL: os << "TCU MUL"; break;
   default: assert(false);
   }
