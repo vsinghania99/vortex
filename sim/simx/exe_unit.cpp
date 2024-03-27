@@ -246,7 +246,7 @@ void LsuUnit::tick() {
                 for (int i = 0; i < req_per_thread; i++)
                 {
                     MemReq mem_req;
-                    //TODO - fix this after bigger matrices are enabled
+                    //TODO - address needs to be fixed
                     mem_req.addr  = mem_addr.addr + i*4;
                     mem_req.write = is_write;
                     mem_req.type  = type; 
@@ -324,6 +324,8 @@ void TcuUnit::tick() {
         auto& output = Outputs.at(i);
         auto trace = input.front();
         switch (trace->tcu_type) {
+        //TODO - cycles for multiplication need to be fixed 
+        //[should depend on matrix size and tc size]
         case TCUType::TCU_MUL:
             output.send(trace, 2);
             break;

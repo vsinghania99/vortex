@@ -24,7 +24,7 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	//TODO - check if okay to send base address like this?
 	//TODO - make flexible for data types
 	unsigned num_threads = arg->num_tasks / ((arg->matrix_size*arg->matrix_size)/(TC_SIZE*TC_SIZE));
-	unsigned num_warps = 4;
+	unsigned num_warps = arg->num_warps;
 	uint32_t matrix_size = arg->matrix_size * arg->matrix_size;
 	int n_tiles = MATRIX_SIZE/TC_SIZE;
 	//uint32_t num_tiles = matrix_size/(TC_SIZE*TC_SIZE);

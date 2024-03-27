@@ -201,7 +201,7 @@ int main(int argc, char *argv[]) {
   int A_mat[] = {1,1,2,2,1,1,2,2,1,1,2,2,1,1,2,2,3,3,4,4,3,3,4,4,3,3,4,4,3,3,4,4};
   int B_mat[] = {1,2,1,2,1,2,1,2,3,4,3,4,3,4,3,4,1,2,1,2,1,2,1,2,3,4,3,4,3,4,3,4};
   
-  
+  kernel_arg.num_warps = num_warps;
   // upload source buffer0
   {
     staging_buf.resize(buf_size);
