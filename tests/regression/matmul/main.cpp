@@ -191,7 +191,7 @@ int main(int argc, char *argv[]) {
   //1
   std::cout << "num_tasks = " << num_tasks << std::endl;
   kernel_arg.num_tasks = num_tasks;
-  kernel_arg.num_warps - num_warps;
+  kernel_arg.num_warps = num_warps;
   //1
   kernel_arg.matrix_size = matrix_size;
 
@@ -269,13 +269,17 @@ int main(int argc, char *argv[]) {
     for(uint32_t i=0; i<n_tiles; i++)
     {
       //traverse through tiles for one output tile
-      for(uint32_t j=0; j< n_tiles; j++)
-      {
-        A_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j]   = src_A[k*TC_SIZE*matrix_size+ TC_SIZE*j];
-        A_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j+1] = src_A[k*TC_SIZE*matrix_size+ TC_SIZE*j+1];
-        A_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j+2] = src_A[k*TC_SIZE*matrix_size+ TC_SIZE*j+matrix_size];
-        A_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j+3] = src_A[k*TC_SIZE*matrix_size+ TC_SIZE*j+matrix_size+1];
-      }
+      
+        for(uint32_t j=0; j< n_tiles; j++)
+        {
+          for(int t=0; t < TC_SIZE*TC_SIZE; t++)
+          { 
+          A_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j + t]   = src_A[k*TC_SIZE*matrix_size+ TC_SIZE*j +(t/TC_SIZE)*matrix_size + t%TC_SIZE];
+          //A_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j+1] = src_A[k*TC_SIZE*matrix_size+ TC_SIZE*j+1];
+          //A_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j+2] = src_A[k*TC_SIZE*matrix_size+ TC_SIZE*j+matrix_size];
+          //A_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j+3] = src_A[k*TC_SIZE*matrix_size+ TC_SIZE*j+matrix_size+1];
+          }
+        }
     }
   }
 
@@ -288,10 +292,13 @@ int main(int argc, char *argv[]) {
       //traverse through tiles for one output tile
       for(uint32_t j=0; j< n_tiles; j++)
       {
-        B_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j]   = src_B[i*TC_SIZE+ TC_SIZE*matrix_size*j];
-        B_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j+1] = src_B[i*TC_SIZE+ TC_SIZE*matrix_size*j+1];
-        B_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j+2] = src_B[i*TC_SIZE+ TC_SIZE*matrix_size*j+matrix_size];
-        B_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j+3] = src_B[i*TC_SIZE+ TC_SIZE*matrix_size*j+matrix_size+1];
+        for(int t=0; t < TC_SIZE*TC_SIZE; t++)
+        {
+          B_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j + t]   = src_B[i*TC_SIZE+ TC_SIZE*matrix_size*j +(t/TC_SIZE)*matrix_size + t%TC_SIZE];
+          //B_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j+1] = src_B[i*TC_SIZE+ TC_SIZE*matrix_size*j+1];
+          //B_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j+2] = src_B[i*TC_SIZE+ TC_SIZE*matrix_size*j+matrix_size];
+          //B_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j+3] = src_B[i*TC_SIZE+ TC_SIZE*matrix_size*j+matrix_size+1];
+        }
       }
     }
   }
