@@ -2312,9 +2312,9 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     //Number of loads - dependant on the thread config
 
     uint32_t n_tiles = core_->get_csr(VX_MAT_MUL_SIZE, 0, warp_id_);  //CSR instruction before MLOAD will ensure that this csr has value
+    uint32_t matrix_size = (n_tiles*tc_size);
     int num_data_per_thread = (tc_size*tc_size)/num_threads;
     uint32_t data_bytes_load = mem_bytes*num_data_per_thread*n_tiles;
-    int num_threads_actv = num_threads;
     int num_threads_actv = num_threads;
     uint32_t data_bytes_store = (mem_bytes*num_data_per_thread)*num_threads_actv;
 
@@ -2340,35 +2340,106 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
         auto trace_data = std::make_shared<LsuTraceData>(num_threads);
         trace->data = trace_data;
         
+        //LOAD A AND B
         for (uint32_t t = thread_start; t < num_threads_actv; ++t) 
         {
           if (!tmask_.test(t))
             continue;
 
           uint32_t base_addr = rsdata[t][0].i ;
+          //TODO :: need to fix this for single instr (ML+ML+MM+MS)
           trace_data->mem_addrs.at(t) = {base_addr, data_bytes_load};
           
-          //Load A or B (depends on immsrc)
+          //Load A or B 
           int loop_offset = 0;
           for(int tiles = 0 ; tiles < n_tiles ; tiles++)  //What's the HW implication of this?? A counter implementation?
           {
+            //Load A
             for (int n=0; n<num_data_per_thread; n++)
             {
               Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
-              core_->dcache_read(temp_ref, (base_addr+(n*mem_bytes)+(loop_offset*mem_bytes)), mem_bytes);
+              uint32_t base_addr_a = base_addr;
+              core_->dcache_read(temp_ref, (base_addr_a+(n*mem_bytes)+(loop_offset*mem_bytes)), mem_bytes);
 
-              uint32_t csr_index = n + (immsrc*num_data_per_thread);
+              uint32_t csr_index = n;
               core_->set_csr(csr_addr[csr_index], *temp_ref, t, warp_id_);
               //csr-> scratchpad (TODO :: can intermediate step of moving to CSR be skipped?)
 
-              scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n] = core_->get_csr(csr_addr[(immsrc*num_data_per_thread) + n], t, warp_id_);
+              scratchpad[loop_offset + (t*num_data_per_thread) + n] = core_->get_csr(csr_addr[n], t, warp_id_);
+            }
+            //Load B
+            for (int n=0; n<num_data_per_thread; n++)
+            {
+              Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
+              uint32_t base_addr_b = base_addr + (matrix_size*matrix_size*mem_bytes);
+              core_->dcache_read(temp_ref, (base_addr_b+(n*mem_bytes)+(loop_offset*mem_bytes)), mem_bytes);
 
+              uint32_t csr_index = n + (num_data_per_thread);
+              core_->set_csr(csr_addr[csr_index], *temp_ref, t, warp_id_);
+              //csr-> scratchpad (TODO :: can intermediate step of moving to CSR be skipped?)
+
+              scratchpad[loop_offset + ((n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n] = core_->get_csr(csr_addr[(num_data_per_thread) + n], t, warp_id_);
             }
             loop_offset += tc_size*tc_size;
           }
         }
+
+        //IMP TODO :: how to ensure all threads are synchronised at this point?
+        //MATMUL
+        for (uint32_t t = thread_start; t < num_threads; ++t) 
+        {
+          if (!tmask_.test(t))
+            continue;
+
+          if (t == 0)
+          {
+            //TODO - change to systolic array implementation
+            int loop_offset = 0;
+            // Loop over all tiles - output stationary
+            for(int tiles = 0 ; tiles < n_tiles ; tiles++)  //What's the HW implication of this?? A counter implementation?
+            { 
+              for (int i = 0; i < tc_size; i++) { //ROW-1
+                for (int j = 0; j < tc_size; j++) { //COL-2
+                  int sum = 0;
+                  for (int k = 0; k < tc_size; k++){ //COL-1
+                    sum = sum + scratchpad[loop_offset + i * tc_size + k] *scratchpad[loop_offset + n_tiles*tc_size*tc_size + (k * tc_size + j)];
+                  }
+                  scratchpad[(n_tiles*tc_size*tc_size*2) + (i * tc_size + j)] += sum; //[i * col2 + j] = sum
+                }
+              }
+              loop_offset += tc_size*tc_size; //Move to the next tiled matmul fragment
+            }
+          }
+        }
+
+        //IMP TODO :: how to ensure all threads are synchronised at this point?
+        //MATRIX STORE
+        for (uint32_t t = thread_start; t < num_threads_actv; ++t) 
+        {
+          if (!tmask_.test(t))
+            continue;
+          uint32_t base_addr = rsdata[t][0].i + (matrix_size*matrix_size*mem_bytes*2);
+
+          //trace_data->mem_addrs.at(t) = {base_addr, data_bytes_store};
+
+          //Store C
+          for (int n=0; n<num_data_per_thread; n++)
+          {
+            uint64_t mem_addr = (base_addr+(n*mem_bytes));
+            uint32_t csr_index = (2*num_data_per_thread) + n;
+            uint32_t scratchpad_index = (tc_size*tc_size*2) + (t*num_data_per_thread) + n;
+            
+            //scratchpad -> csr (TODO :: can intermediate step of moving to CSR be skipped?)
+            core_->set_csr(csr_addr[(2*num_data_per_thread) + n], scratchpad[(n_tiles*tc_size*tc_size*2) + (t*num_data_per_thread) + n], t, warp_id_);
+            Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
+            *temp_ref = core_->get_csr(csr_addr[(num_data_per_thread*2) + n], t, warp_id_);
+            core_->dcache_write(temp_ref, base_addr+(n*mem_bytes), mem_bytes);  
+          }
+        }
+
         rd_write = true;  
       } break;
+      /*
       case 1: 
       { 
         DP(4, "TCU STORE");
@@ -2443,6 +2514,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
 
 
       }break;
+      */
       default:
         std::abort();
     }

@@ -85,16 +85,17 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	if( (task_id/(TC_SIZE*TC_SIZE)) < task_id_max)
 	{	
 		csr_write(VX_MAT_MUL_SIZE,n_tiles);
+		//TODO :: fix A & B loading to store A and B consecutively
 		mload (0, a_addr_base);
-		mload (1, b_addr_base);
+		//mload (1, b_addr_base);
 		//In case of multiple threads - sync load
-		vx_fence();
+		//vx_fence();
 
 
-		mm();   //Assuming padding to ensure matrix size is a multiple of TC_SIZE
-		vx_fence();
+		//mm();   //Assuming padding to ensure matrix size is a multiple of TC_SIZE
+		//vx_fence();
 
-		ms(c_addr_base);
+		//ms(c_addr_base);
 		//In case of multiple threads - sync store
 		vx_fence();
 	}
