@@ -2302,8 +2302,6 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
   case TCU: 
 
   { //TODO - make it data-type flexible
-
-    uint32_t mem_bytes = 1 << (2 & 0x3);
     
     uint16_t tc_size = core_->arch().tc_size();
     //load memory addresses
@@ -2315,10 +2313,12 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
 
     uint32_t n_tiles = core_->get_csr(VX_MAT_MUL_SIZE, 0, warp_id_);  //CSR instruction before MLOAD will ensure that this csr has value
     int num_data_per_thread = (tc_size*tc_size)/num_threads;
-    uint32_t data_bytes_load = mem_bytes*num_data_per_thread;
-    uint32_t data_bytes_store = (mem_bytes*num_data_per_thread);
-
+    uint32_t data_bytes_load = mem_bytes*num_data_per_thread*n_tiles;
     int num_threads_actv = num_threads;
+    int num_threads_actv = num_threads;
+    uint32_t data_bytes_store = (mem_bytes*num_data_per_thread)*num_threads_actv;
+
+    
     if(num_threads > TC_SIZE*TC_SIZE)
     { 
       num_threads_actv = TC_SIZE*TC_SIZE;
@@ -2340,8 +2340,6 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
         auto trace_data = std::make_shared<LsuTraceData>(num_threads);
         trace->data = trace_data;
         
-        DP(3, "MATMUL LOAD: warp_id " << warp_id_ << std::endl );
-
         for (uint32_t t = thread_start; t < num_threads_actv; ++t) 
         {
           if (!tmask_.test(t))
@@ -2350,26 +2348,21 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
           uint32_t base_addr = rsdata[t][0].i ;
           trace_data->mem_addrs.at(t) = {base_addr, data_bytes_load};
           
-          DP(3, "MATMUL LOAD: Thread " << t << std::endl );
-          DP(3, "MATMUL LOAD: base_addr " << base_addr << std::endl );
           //Load A or B (depends on immsrc)
           int loop_offset = 0;
           for(int tiles = 0 ; tiles < n_tiles ; tiles++)  //What's the HW implication of this?? A counter implementation?
           {
-            //DP(3, "MATMUL LOAD: TILE START: " << tiles << std::endl);
             for (int n=0; n<num_data_per_thread; n++)
             {
               Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
-              //TODO - multiple "mem_bytes" fetch in 1 shot?
-              //core_->dcache_read(temp_ref, base_addr+(t*num_data_per_thread)+(n*mem_bytes), mem_bytes);
               core_->dcache_read(temp_ref, (base_addr+(n*mem_bytes)+(loop_offset*mem_bytes)), mem_bytes);
-              DP(3, "MATMUL LOAD: DCACHE_READ=" << *temp_ref << std::endl);
+
               uint32_t csr_index = n + (immsrc*num_data_per_thread);
               core_->set_csr(csr_addr[csr_index], *temp_ref, t, warp_id_);
               //csr-> scratchpad (TODO :: can intermediate step of moving to CSR be skipped?)
-              DP(3, "MATMUL LOAD: CSR INDEX=" << csr_index << " ,CSR VALUE=" << core_->get_csr(csr_addr[(immsrc*num_data_per_thread) + n], t, warp_id_) << std::endl); 
+
               scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n] = core_->get_csr(csr_addr[(immsrc*num_data_per_thread) + n], t, warp_id_);
-              DP(3, "MATMUL LOAD: SCRATCHPAD INDEX=" << (loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n) << " , VALUE=" <<  scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n] << std::endl);
+
             }
             loop_offset += tc_size*tc_size;
           }
@@ -2382,9 +2375,6 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
         trace->exe_type = ExeType::LSU;
         trace->lsu_type = LsuType::TCU_STORE;
 
-
-        DP(3, "MATMUL STR: warp_id " << warp_id_ << std::endl );
-
         auto trace_data = std::make_shared<LsuTraceData>(num_threads);
         trace->data = trace_data;
 
@@ -2395,9 +2385,6 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
           uint32_t base_addr = rsdata[t][0].i ;
 
           trace_data->mem_addrs.at(t) = {base_addr, data_bytes_store};
-          DP(3, "MATMUL STR: base_addr " << base_addr << std::endl );
-
-          //uint32_t n_tiles = core_->get_csr(VX_MAT_MUL_SIZE, t, warp_id_);
 
           //Store C
           for (int n=0; n<num_data_per_thread; n++)
@@ -2410,7 +2397,6 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
             core_->set_csr(csr_addr[(2*num_data_per_thread) + n], scratchpad[(n_tiles*tc_size*tc_size*2) + (t*num_data_per_thread) + n], t, warp_id_);
             Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
             *temp_ref = core_->get_csr(csr_addr[(num_data_per_thread*2) + n], t, warp_id_);
-            //core_->dcache_write(temp_ref, base_addr+(t*num_data_per_thread)+(n*mem_bytes), mem_bytes);
             core_->dcache_write(temp_ref, base_addr+(n*mem_bytes), mem_bytes);  
           }
         }
@@ -2427,11 +2413,8 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
         trace->exe_type = ExeType::TCU;
         trace->tcu_type = TCUType::TCU_MUL;
 
-        DP(3, "MATMUL EXE: warp_id " << warp_id_ << std::endl );
-
         for (uint32_t t = thread_start; t < num_threads; ++t) 
         {
-          //uint32_t n_tiles = core_->get_csr(VX_MAT_MUL_SIZE, t, warp_id_);
           if (!tmask_.test(t))
             continue;
          
@@ -2439,7 +2422,6 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
           if (t == 0)
           {
             //TODO - change to systolic array implementation
-          
             int loop_offset = 0;
             // Loop over all tiles - output stationary
             for(int tiles = 0 ; tiles < n_tiles ; tiles++)  //What's the HW implication of this?? A counter implementation?
@@ -2450,10 +2432,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
                   for (int k = 0; k < tc_size; k++){ //COL-1
                     sum = sum + scratchpad[loop_offset + i * tc_size + k] *scratchpad[loop_offset + n_tiles*tc_size*tc_size + (k * tc_size + j)];
                   }
-                  //scratchpad[(tc_size*tc_size*2) + (i * tc_size + j)] = sum; //[i * col2 + j] = sum
                   scratchpad[(n_tiles*tc_size*tc_size*2) + (i * tc_size + j)] += sum; //[i * col2 + j] = sum
-                  DP(3, "MATMUL EXECUTION: SCRATCHPAD INDEX=" << (n_tiles*tc_size*tc_size*2) + (i * tc_size + j) << " , VALUE=" <<  scratchpad[(n_tiles*tc_size*tc_size*2) + (i * tc_size + j)] << std::endl);
-
                 }
               }
               loop_offset += tc_size*tc_size; //Move to the next tiled matmul fragment

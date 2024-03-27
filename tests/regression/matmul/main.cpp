@@ -303,7 +303,7 @@ int main(int argc, char *argv[]) {
     }
   }
   
-  // upload source buffer0
+ // upload source buffer0
   {
     staging_buf.resize(buf_size);
     std::cout << "upload source buffer0" << std::endl;
