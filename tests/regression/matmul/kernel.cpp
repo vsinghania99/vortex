@@ -25,6 +25,7 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	//TODO - make flexible for data types
 	unsigned num_threads = arg->num_tasks / ((arg->matrix_size*arg->matrix_size)/(TC_SIZE*TC_SIZE));
 	unsigned num_warps = arg->num_warps;
+
 	uint32_t matrix_size = arg->matrix_size * arg->matrix_size;
 	int n_tiles = MATRIX_SIZE/TC_SIZE;
 	//uint32_t num_tiles = matrix_size/(TC_SIZE*TC_SIZE);
@@ -58,8 +59,9 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	if(num_threads > TC_SIZE*TC_SIZE)
 	{  
 		task_id_max = TC_SIZE*TC_SIZE;
-		offset = (TC_SIZE*TC_SIZE*n_tiles)*(task_id%(arg->num_tasks/num_warps*num_threads)) + (task_id/(arg->num_tasks/num_warps))*(TC_SIZE*TC_SIZE*n_tiles*num_threads);
-		offset_c = (TC_SIZE*TC_SIZE)*(task_id%(arg->num_tasks/num_threads)) + (task_id/(arg->num_tasks/num_threads));
+		offset = (TC_SIZE*TC_SIZE*n_tiles)*((task_id)%(arg->num_tasks/(num_threads))) + ((task_id)/(arg->num_tasks/(num_threads)));
+		offset_c = (TC_SIZE*TC_SIZE)*((task_id)%(arg->num_tasks/(num_threads))) + ((task_id)/(arg->num_tasks/(num_threads)));
+
 	}
 
 	unsigned a_addr_base = a_addr + offset*4;
