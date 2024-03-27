@@ -24,7 +24,7 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	//TODO - check if okay to send base address like this?
 	//TODO - make flexible for data types
 	unsigned num_threads = arg->num_tasks / ((arg->matrix_size*arg->matrix_size)/(TC_SIZE*TC_SIZE));
-	unsigned num_warps = 4;
+	unsigned num_warps = arg->num_warps;
 	uint32_t matrix_size = arg->matrix_size * arg->matrix_size;
 	int n_tiles = MATRIX_SIZE/TC_SIZE;
 	//uint32_t num_tiles = matrix_size/(TC_SIZE*TC_SIZE);
@@ -34,7 +34,7 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	//unsigned offset = 4*((task_id%num_threads) + (task_id/num_threads)*(n_tiles*TC_SIZE*TC_SIZE));
 	unsigned task_id_max = arg->num_tasks;	
 	unsigned offset = (TC_SIZE*TC_SIZE*n_tiles)*((task_id)%(arg->num_tasks/(num_threads))) + (TC_SIZE*TC_SIZE/num_threads)*((task_id)/(arg->num_tasks/(num_threads)));
-	unsigned offset_c = (TC_SIZE*TC_SIZE)*((task_id)%(arg->num_tasks/(num_threads))) + (TC_SIZE*TC_SIZE/num_threads)*((task_id)/(arg->num_tasks/(num_threads)));
+	unsigned offset_c = (TC_SIZE*TC_SIZE)*((task_id)%(arg->num_tasks/num_threads)) + (TC_SIZE*TC_SIZE/num_threads)*((task_id)/(arg->num_tasks/(num_threads)));
 
 	if(num_warps >= 2)
 	{	//not braining!!
@@ -67,13 +67,13 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	unsigned c_addr_base = c_addr + offset_c*4;
 	//unsigned c_addr_base = c_addr + (((task_id*matrix_size)/arg->num_tasks)*4) ; //Fix this
 	
-	vx_printf("NUM_THREADS = %d\n",NUM_THREADS);
+	//vx_printf("NUM_THREADS = %d\n",NUM_THREADS);
 	vx_printf("num_threads = %d\n",num_threads);
-	vx_printf("task ID = %d: a addr offset = %d\n",task_id,offset);
+	//vx_printf("task ID = %d: a addr offset = %d\n",task_id,offset);
 
-	vx_printf("task ID = %d: a addr = %d\n",task_id,a_addr_base);
-	vx_printf("task ID = %d: b addr = %d\n",task_id,b_addr_base);
-	vx_printf("task ID = %d: c addr = %d\n",task_id,c_addr_base);
+	//vx_printf("task ID = %d: a addr = %d\n",task_id,a_addr_base);
+	//vx_printf("task ID = %d: b addr = %d\n",task_id,b_addr_base);
+	//vx_printf("task ID = %d: c addr = %d\n",task_id,c_addr_base);
 	
 	//for(int i=0; i<32; i++)
 	//{
