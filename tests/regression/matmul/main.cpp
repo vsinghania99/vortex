@@ -195,15 +195,22 @@ int main(int argc, char *argv[]) {
   //1
   kernel_arg.matrix_size = matrix_size;
 
-  std::cout << "dev_src0=0x" << std::hex << kernel_arg.src0_addr << std::endl;
-  std::cout << "dev_src1=0x" << std::hex << kernel_arg.src1_addr << std::endl;
-  std::cout << "dev_dst=0x" << std::hex << kernel_arg.dst_addr << std::endl;
+  //std::cout << "dev_src0=0x" << std::hex << kernel_arg.src0_addr << std::endl;
+  //std::cout << "dev_src1=0x" << std::hex << kernel_arg.src1_addr << std::endl;
+  //std::cout << "dev_dst=0x" << std::hex << kernel_arg.dst_addr << std::endl;
   std::cout << "num_tasks = " << std::hex << kernel_arg.num_tasks << std::endl;
   std::cout << "matrix_size = " << std::hex << kernel_arg.matrix_size << std::endl;
   
-  kernel_arg.src0_addr = 0x40;
-  kernel_arg.src1_addr = 0x240;
-  kernel_arg.dst_addr = 0x440;
+  
+  uint32_t offset = (matrix_size*matrix_size)/(TC_SIZE*TC_SIZE) * (matrix_size/TC_SIZE) * (TC_SIZE*TC_SIZE) * 4;
+  uint32_t base_addr = 0x40;
+  kernel_arg.src0_addr = base_addr;  
+  kernel_arg.src1_addr = base_addr + offset;
+  kernel_arg.dst_addr = base_addr + 2*offset;
+
+  std::cout << "dev_src0=0x" << std::hex << kernel_arg.src0_addr << std::endl;
+  std::cout << "dev_src1=0x" << std::hex << kernel_arg.src1_addr << std::endl;
+  std::cout << "dev_dst=0x" << std::hex << kernel_arg.dst_addr << std::endl;
 
   // allocate staging buffer  
   std::cout << "allocate staging buffer" << std::endl;    
