@@ -41,19 +41,18 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	{	//not braining!!
 		//Warp Offset + Thread Offset + Time Offset
 		//offset = (TC_SIZE*TC_SIZE*n_tiles)*(matrix_size/(TC_SIZE*TC_SIZE)/num_warps)*(task_id/(arg->num_tasks/num_warps)) + (task_id%( ((arg->num_tasks/num_warps)/num_threads) ))*(TC_SIZE*TC_SIZE*n_tiles) + ((task_id%(arg->num_tasks/num_warps))/((arg->num_tasks/num_warps)/num_threads))*(TC_SIZE*TC_SIZE/num_threads) ;
-		int size_per_way = TC_SIZE*TC_SIZE*n_tiles; //8
-		int tasks_per_warp = arg->num_tasks/(num_warps); //4
-		int tasks_per_wt = tasks_per_warp/num_threads; //2
-		int tid_warpid		= (task_id)%(tasks_per_warp); //taskid % 4
-		int tc_size = TC_SIZE*TC_SIZE; //4
-		int first = (size_per_way*tasks_per_wt*((task_id)/(tasks_per_warp)));
+		int size_per_way = TC_SIZE*TC_SIZE*n_tiles; //4
+		int tasks_per_warp = MAX(1,arg->num_tasks/(num_warps)); //1
+		int tasks_per_wt = MAX(1,tasks_per_warp/num_threads); //1
+		int tid_warpid		= (task_id)%(tasks_per_warp); //taskid % 1 = 0
+		int tc_size = TC_SIZE*TC_SIZE; //
+		int first = (size_per_way*tasks_per_wt*((task_id)/(tasks_per_warp)));   //4*1(0/1) = 0, 4
 		int second = ((size_per_way)*(tid_warpid%tasks_per_wt));
 		int third = ((tc_size/num_threads)*((tid_warpid)/tasks_per_wt));
 		vx_printf("offset 1st term = %x; offset 2nd term = %x; offset 3rd term = %x\n",first, second, third);
 
 		offset = first + second + third;
-		
-		offset_c = (TC_SIZE*TC_SIZE*(arg->num_tasks/(num_warps*num_threads)))*(task_id/(arg->num_tasks/num_warps)) + (TC_SIZE*TC_SIZE)*(((task_id)%(arg->num_tasks/(num_warps)))%(arg->num_tasks/(num_threads*num_warps))) + (TC_SIZE*TC_SIZE/num_threads)*(((task_id)%(arg->num_tasks/num_warps))/(arg->num_tasks/(num_threads*num_warps)));
+		offset_c = (TC_SIZE*TC_SIZE*(MAX(1,arg->num_tasks/(num_warps*num_threads))))*(task_id/MAX(1,(arg->num_tasks/num_warps))) + (TC_SIZE*TC_SIZE)*(((task_id)%(MAX(1,arg->num_tasks/(num_warps))))%(MAX(1,arg->num_tasks/(num_threads*num_warps)))) + (TC_SIZE*TC_SIZE/num_threads)*(((task_id)%(MAX(1,arg->num_tasks/num_warps)))/(MAX(1,arg->num_tasks/(num_threads*num_warps))));
 	}
 
 	if(num_threads > TC_SIZE*TC_SIZE)
