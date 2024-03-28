@@ -27,7 +27,7 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	unsigned num_warps = arg->num_warps;
 
 	uint32_t matrix_size = arg->matrix_size * arg->matrix_size;
-	int n_tiles = MATRIX_SIZE/TC_SIZE;
+	int n_tiles = arg->matrix_size/TC_SIZE;
 	//uint32_t num_tiles = matrix_size/(TC_SIZE*TC_SIZE);
 	//unsigned a_addr_base = a_addr + (((task_id*matrix_size)/arg->num_tasks)*(arg->matrix_size/(TC_SIZE*num_threads))*4) ;
 	//unsigned b_addr_base = b_addr + (((task_id*matrix_size)/arg->num_tasks)*(arg->matrix_size/(TC_SIZE*num_threads))*4) ;

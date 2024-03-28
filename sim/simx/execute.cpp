@@ -2302,7 +2302,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
   case TCU: 
 
   { //TODO - make it data-type flexible
-    
+    uint32_t mem_bytes = 4;
     uint16_t tc_size = core_->arch().tc_size();
     //load memory addresses
     uint64_t csr_addr[tc_size*tc_size*3] = {VX_MAT_MUL_0,VX_MAT_MUL_1, VX_MAT_MUL_2, VX_MAT_MUL_3, VX_MAT_MUL_4, VX_MAT_MUL_5, VX_MAT_MUL_6, VX_MAT_MUL_7, VX_MAT_MUL_8, VX_MAT_MUL_9, VX_MAT_MUL_10, VX_MAT_MUL_11};
@@ -2314,7 +2314,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     int num_data_per_thread = (tc_size*tc_size)/num_threads;
 
     int num_threads_actv = num_threads;
-    int num_threads_actv = num_threads;
+    //int num_threads_actv = num_threads;
     
     if(num_threads > TC_SIZE*TC_SIZE)
     { 
@@ -2362,7 +2362,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
               //csr-> scratchpad (TODO :: can intermediate step of moving to CSR be skipped?)
 
               scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n] = core_->get_csr(csr_addr[(immsrc*num_data_per_thread) + n], t, warp_id_);
-
+              //DP(3, "Scratchpad Index: " << loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n << ", Value: " << scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n]);
             }
             loop_offset += tc_size*tc_size;
           }
