@@ -23,7 +23,7 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 
 	//TODO - check if okay to send base address like this?
 	//TODO - make flexible for data types
-	unsigned num_threads = arg->num_tasks / ((arg->matrix_size*arg->matrix_size)/(TC_SIZE*TC_SIZE));
+	//unsigned num_threads = arg->num_tasks / ((arg->matrix_size*arg->matrix_size)/(TC_SIZE*TC_SIZE));
 	unsigned num_warps = arg->num_warps;
 
 	uint32_t matrix_size = arg->matrix_size * arg->matrix_size;
@@ -34,10 +34,10 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	//unsigned c_addr_base = c_addr + ((( (task_id % num_tiles) ) *(matrix_size)/arg->num_tasks)*(arg->matrix_size/TC_SIZE)*4) ;
 	//unsigned offset = 4*((task_id%num_threads) + (task_id/num_threads)*(n_tiles*TC_SIZE*TC_SIZE));
 	unsigned task_id_max = arg->num_tasks;	
-	unsigned offset = (TC_SIZE*TC_SIZE*n_tiles)*((task_id)%(arg->num_tasks/(num_threads))) + (TC_SIZE*TC_SIZE/num_threads)*((task_id)/(arg->num_tasks/(num_threads)));
-	unsigned offset_c = (TC_SIZE*TC_SIZE)*((task_id)%(arg->num_tasks/num_threads)) + (TC_SIZE*TC_SIZE/num_threads)*((task_id)/(arg->num_tasks/(num_threads)));
+	unsigned offset = (TC_SIZE*TC_SIZE*n_tiles)*((task_id)%(arg->num_tasks));
+	unsigned offset_c = (TC_SIZE*TC_SIZE)*((task_id)%(arg->num_tasks));
 
-	if(num_warps >= 2)
+	/*if(num_warps >= 2)
 	{	//not braining!!
 		//Warp Offset + Thread Offset + Time Offset
 		//offset = (TC_SIZE*TC_SIZE*n_tiles)*(matrix_size/(TC_SIZE*TC_SIZE)/num_warps)*(task_id/(arg->num_tasks/num_warps)) + (task_id%( ((arg->num_tasks/num_warps)/num_threads) ))*(TC_SIZE*TC_SIZE*n_tiles) + ((task_id%(arg->num_tasks/num_warps))/((arg->num_tasks/num_warps)/num_threads))*(TC_SIZE*TC_SIZE/num_threads) ;
@@ -61,7 +61,7 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 		offset = (TC_SIZE*TC_SIZE*n_tiles)*((task_id)%(arg->num_tasks/(num_threads))) + ((task_id)/(arg->num_tasks/(num_threads)));
 		offset_c = (TC_SIZE*TC_SIZE)*((task_id)%(arg->num_tasks/(num_threads))) + ((task_id)/(arg->num_tasks/(num_threads)));
 
-	}
+	}*/
 
 	unsigned a_addr_base = a_addr + offset*4;
 	unsigned b_addr_base = b_addr + offset*4;
@@ -69,7 +69,7 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	//unsigned c_addr_base = c_addr + (((task_id*matrix_size)/arg->num_tasks)*4) ; //Fix this
 	
 	//vx_printf("NUM_THREADS = %d\n",NUM_THREADS);
-	vx_printf("num_threads = %d\n",num_threads);
+	//vx_printf("num_threads = %d\n",num_threads);
 	//vx_printf("task ID = %d: a addr offset = %d\n",task_id,offset);
 
 	//vx_printf("task ID = %d: a addr = %d\n",task_id,a_addr_base);
