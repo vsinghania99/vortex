@@ -35,8 +35,8 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	
 	//int num_data_per_thread = MAX(1, (n_tiles*tc_size*tc_size)/(num_threads))
 	int addr_shift;
-	if (((n_tiles*tc_size*tc_size)/(num_threads)) > 1)
-		addr_shift = tc_size;
+	if (((tc_size*tc_size)/(num_threads)) > 1)
+		addr_shift = n_tiles*n_tiles;
 	else
 		addr_shift = 1;
 	int num_data_per_op_tile = tc_size*tc_size*n_tiles;
