@@ -2309,9 +2309,10 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     
     //TODO - make it data-type flexible
     //Number of loads - dependant on the thread config
+    int TC_per_warp = 2;
 
     uint32_t n_tiles = core_->get_csr(VX_MAT_MUL_SIZE, 0, warp_id_);  //CSR instruction before MLOAD will ensure that this csr has value
-    int num_data_per_thread = (tc_size*tc_size*n_tiles);
+    int num_data_per_thread = (tc_size*tc_size*n_tiles)/(num_threads/TC_per_warp);
 
     int num_threads_actv = num_threads;
     //int num_threads_actv = num_threads;
@@ -2339,6 +2340,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
         {
           if (!tmask_.test(t))
             continue;
+          DP(3, "Thread ID" << t); 
 
           uint32_t base_addr = rsdata[t][0].i ;
           trace_data->mem_addrs.at(t) = {base_addr, data_bytes_load};
@@ -2346,6 +2348,8 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
           //Load A or B (depends on immsrc)
           int loop_offset = 0;
           //for(int tiles = 0 ; tiles < n_tiles ; tiles++)  //What's the HW implication of this?? A counter implementation?
+          //{
+          //if (t%(num_threads/TC_per_warp) == 0)
           //{
             for (int n=0; n<num_data_per_thread; n++)
             {
@@ -2363,6 +2367,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
             }
             //loop_offset += tc_size*tc_size;
           //}
+
         }
         rd_write = true;  
       } break;
@@ -2380,23 +2385,28 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
         {
           if (!tmask_.test(t))
             continue;
+
+          DP(3, "Thread ID" << t); 
           uint32_t base_addr = rsdata[t][0].i ;
 
           trace_data->mem_addrs.at(t) = {base_addr, data_bytes_store};
 
           //Store C
-          for (int n=0; n<tc_size*tc_size; n++)
-          {
-            uint64_t mem_addr = (base_addr+(n*mem_bytes));
-            uint32_t csr_index = 2*tc_size*tc_size + n;
-            uint32_t scratchpad_index = accu_offset + (t*tc_size*tc_size) + n;
-            
-            //scratchpad -> csr (TODO :: can intermediate step of moving to CSR be skipped?)
-            core_->set_csr(csr_addr[csr_index], scratchpad[scratchpad_index], t, warp_id_);
-            Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
-            *temp_ref = core_->get_csr(csr_addr[csr_index], t, warp_id_);
-            core_->dcache_write(temp_ref, base_addr+(n*mem_bytes), mem_bytes);  
-          }
+          //if (t%(num_threads/TC_per_warp) == 0)
+          //{
+            for (int n=0; n<tc_size*tc_size; n++)
+            {
+              uint64_t mem_addr = (base_addr+(n*mem_bytes));
+              uint32_t csr_index = 2*tc_size*tc_size + n;
+              uint32_t scratchpad_index = accu_offset + (t*tc_size*tc_size) + n;
+              
+              //scratchpad -> csr (TODO :: can intermediate step of moving to CSR be skipped?)
+              core_->set_csr(csr_addr[csr_index], scratchpad[scratchpad_index], t, warp_id_);
+              Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
+              *temp_ref = core_->get_csr(csr_addr[csr_index], t, warp_id_);
+              core_->dcache_write(temp_ref, base_addr+(n*mem_bytes), mem_bytes);  
+            }
+          //}
         }
         //Clear the scratchpad
         for(int i =0 ; i < scratchpad.size(); i++)
@@ -2416,9 +2426,10 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
           if (!tmask_.test(t))
             continue;
          
+          DP(3, "Thread ID" << t); 
           //TC operation [only 1 thread in 1 warp needs to do this]
-          //if (t == 0)
-          //{
+          if (t%(num_threads/TC_per_warp) == 0)
+          {
             //TODO - change to systolic array implementation
             uint32_t thread_offset = t*(TC_SIZE*TC_SIZE);
             int loop_offset = 0;
@@ -2439,7 +2450,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
               }
               loop_offset += tc_size*tc_size; //Move to the next tiled matmul fragment
             }
-          //}
+          }
         }
 
 

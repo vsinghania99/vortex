@@ -160,7 +160,10 @@ int main(int argc, char *argv[]) {
   //TODO - fix this
   std::cout << "DEBUG: Matrix Size: " << matrix_size << std::endl;
   //uint32_t num_tasks  = ((matrix_size*matrix_size)/(TC_SIZE*TC_SIZE))*(matrix_size/(TC_SIZE))*num_threads;
-  uint32_t num_tasks  = (matrix_size*matrix_size)/(TC_SIZE*TC_SIZE);
+
+  //FIX THIS
+  int TC_per_warp = 2;
+  uint32_t num_tasks  = (matrix_size*matrix_size)/(TC_SIZE*TC_SIZE)*(num_threads/TC_per_warp);
   
   //4*1*1
   std::cout << "DEBUG: TC Size: " << TC_SIZE << std::endl;
@@ -192,6 +195,7 @@ int main(int argc, char *argv[]) {
   std::cout << "num_tasks = " << num_tasks << std::endl;
   kernel_arg.num_tasks = num_tasks;
   kernel_arg.num_warps = num_warps;
+  kernel_arg.num_threads = num_threads;
   //1
   kernel_arg.matrix_size = matrix_size;
 
