@@ -30,7 +30,7 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	//unsigned b_addr_base = b_addr + (((task_id*matrix_size)/arg->num_tasks)*(arg->matrix_size/(TC_SIZE*num_threads))*4) ;
 	//unsigned c_addr_base = c_addr + ((( (task_id % num_tiles) ) *(matrix_size)/arg->num_tasks)*(arg->matrix_size/TC_SIZE)*4) ;
 	//unsigned offset = 4*((task_id%num_threads) + (task_id/num_threads)*(n_tiles*TC_SIZE*TC_SIZE));
-	int TC_per_warp = 2;
+	int TC_per_warp = arg->TC_per_warp;
 
 	unsigned task_id_max = arg->num_tasks;	
 	unsigned offset = ((TC_SIZE*TC_SIZE*n_tiles))*((task_id)%(arg->num_tasks/(arg->num_threads/TC_per_warp))) + ((TC_SIZE*TC_SIZE*n_tiles)/(arg->num_threads/TC_per_warp))*((task_id)/(arg->num_tasks/(arg->num_threads/TC_per_warp)));
@@ -85,6 +85,7 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	if( (task_id/(TC_SIZE*TC_SIZE)) < task_id_max)
 	{	
 		csr_write(VX_MAT_MUL_SIZE,n_tiles);
+		csr_write(VX_MAT_TC_PER_WARP,arg->TC_per_warp);
 		mload (0, a_addr_base);
 		mload (1, b_addr_base);
 		//In case of multiple threads - sync load

@@ -201,6 +201,7 @@ private:
   std::vector<std::vector<CSRs>> csrs_;
   std::vector<std::vector<CSRs>> tcore_csrs_;
   uint32_t mat_size;
+  uint32_t TC_per_warp;
 
   PerfStats perf_stats_;
   

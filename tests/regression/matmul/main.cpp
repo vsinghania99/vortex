@@ -196,6 +196,7 @@ int main(int argc, char *argv[]) {
   kernel_arg.num_tasks = num_tasks;
   kernel_arg.num_warps = num_warps;
   kernel_arg.num_threads = num_threads;
+  kernel_arg.TC_per_warp = TC_per_warp;
   //1
   kernel_arg.matrix_size = matrix_size;
 

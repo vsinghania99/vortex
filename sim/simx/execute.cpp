@@ -2309,9 +2309,9 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     
     //TODO - make it data-type flexible
     //Number of loads - dependant on the thread config
-    int TC_per_warp = 2;
-
+  
     uint32_t n_tiles = core_->get_csr(VX_MAT_MUL_SIZE, 0, warp_id_);  //CSR instruction before MLOAD will ensure that this csr has value
+    uint32_t TC_per_warp = core_->get_csr(VX_MAT_TC_PER_WARP, 0, warp_id_);  
     int num_data_per_thread = (tc_size*tc_size*n_tiles)/(num_threads/TC_per_warp);
 
     int num_threads_actv = num_threads;
