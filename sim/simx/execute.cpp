@@ -2322,7 +2322,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
       num_data_per_thread = 1;
     }
   
-    uint32_t data_bytes_load = mem_bytes*num_data_per_thread;
+    uint32_t data_bytes_load = mem_bytes*num_data_per_thread*n_tiles;
     uint32_t data_bytes_store = (mem_bytes*num_data_per_thread);
 
     DP(3, "Num Tiles=" << n_tiles << std::endl);

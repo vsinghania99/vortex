@@ -30,7 +30,8 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 
 	int num_tasks_per_thread = MAX (1, (num_tasks/(num_threads*num_warps_actual)));
 	int num_tasks_per_warp = MAX (1, num_tasks/num_warps_actual);
-	
+	int num_op_tiles = (matrix_size*matrix_size)/(tc_size*tc_size);
+
 	//int num_data_per_thread = MAX(1, (n_tiles*tc_size*tc_size)/(num_threads))
 	int addr_shift;
 	if (((tc_size*tc_size)/(num_threads)) > 1)
@@ -82,7 +83,11 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	if (task_id < task_id_max)
 	{	
 		csr_write(VX_MAT_MUL_SIZE,n_tiles);
-		mload (0, a_addr_base);
+		if( (( (task_id % num_tasks_per_warp) % num_op_tiles)% n_tiles) == 0)
+		{
+			vx_printf("task id = %d fetches from memory\n",task_id);
+			mload (0, a_addr_base);
+		}
 		mload (1, b_addr_base);
 		//In case of multiple threads - sync load
 		vx_fence();
