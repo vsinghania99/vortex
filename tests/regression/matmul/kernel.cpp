@@ -36,14 +36,15 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	//int num_data_per_thread = MAX(1, (n_tiles*tc_size*tc_size)/(num_threads))
 	int addr_shift;
 	if (((tc_size*tc_size)/(num_threads)) > 1)
-		addr_shift = n_tiles*n_tiles;
+		addr_shift = (tc_size*tc_size)/(num_threads);
 	else
 		addr_shift = 1;
 	int num_data_per_op_tile = tc_size*tc_size*n_tiles;
 	int num_data_per_warp = num_data_per_op_tile*(MAX(1, (num_output_tiles/num_warps_actual)));
 
 	//Offset for 1st warp
-	int offset = ((task_id/num_tasks_per_thread)*addr_shift) + ((task_id%num_tasks_per_thread)*num_data_per_op_tile);
+	int task_id_first_warp = task_id%num_tasks_per_warp;
+	int offset = ((task_id_first_warp/num_tasks_per_thread)*addr_shift) + ((task_id_first_warp%num_tasks_per_thread)*num_data_per_op_tile);
 
 	vx_printf("task_id = %d\n", task_id);
 	vx_printf("(task_id/num_tasks_per_thread) = %d\n", task_id/num_tasks_per_thread);
@@ -54,8 +55,8 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	//int offset = ((task_id/num_tasks_per_thread)*num_data_per_thread) + ((task_id%num_tasks_per_thread)*num_data_per_op_tile)
 	//Generalisation for all warps
 	offset = offset + (num_data_per_warp*(task_id/num_tasks_per_warp));
-	
-	vx_printf("task_id = %d; offset = %d\n",task_id,offset);
+
+	vx_printf("task_id = %d; offset_1st_warp = %d; offset_actual = %d\n",task_id,(offset - (num_data_per_warp*(task_id/num_tasks_per_warp))), offset);
 
 	int addr_shift_c;
 	if (((tc_size*tc_size)/(num_threads)) > 1)
@@ -64,9 +65,9 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 		addr_shift_c = 1;
 	int num_data_per_op_tile_c = tc_size*tc_size;
 
-
-	int offset_c = ((task_id/num_tasks_per_thread)*addr_shift_c) + ((task_id%num_tasks_per_thread)*num_data_per_op_tile_c);
-	offset_c = offset_c + (num_data_per_warp*(task_id/num_tasks_per_warp));
+	int num_data_per_warp_c = num_data_per_warp/n_tiles;
+	int offset_c = ((task_id_first_warp/num_tasks_per_thread)*addr_shift_c) + ((task_id_first_warp%num_tasks_per_thread)*num_data_per_op_tile_c);
+	offset_c = offset_c + (num_data_per_warp_c*(task_id/num_tasks_per_warp));
 
 	vx_printf("offset_c = %d\n",offset_c);
 
@@ -74,15 +75,19 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	//unsigned offset = (TC_SIZE*TC_SIZE*n_tiles)*((task_id)%(arg->num_tasks/(num_threads))) + (TC_SIZE*TC_SIZE/num_threads)*((task_id)/(arg->num_tasks/(num_threads)));
 	//unsigned offset_c = (TC_SIZE*TC_SIZE)*((task_id)%(arg->num_tasks/num_threads)) + (TC_SIZE*TC_SIZE/num_threads)*((task_id)/(arg->num_tasks/(num_threads)));
 
-	int task_id_max = MIN(arg->num_tasks, num_data_per_op_tile*num_output_tiles);
-
-	unsigned a_addr_base = a_addr + offset*4;
-	unsigned b_addr_base = b_addr + offset*4;
-	unsigned c_addr_base = c_addr + offset_c*4;
+	//TODO : change this during thread optimization
+	//int task_id_max = MIN(arg->num_tasks, num_data_per_op_tile*num_output_tiles);
+	int task_id_max = MIN(num_tasks_per_thread, num_output_tiles);
+	
+	int xyz = MIN(num_threads,tc_size*tc_size);
+	
 	//unsigned c_addr_base = c_addr + (((task_id*matrix_size)/arg->num_tasks)*4) ; //Fix this
 	
-	if (task_id < task_id_max)
+	if (((task_id%num_tasks_per_warp)/num_tasks_per_thread) < xyz)
 	{	
+		unsigned a_addr_base = a_addr + offset*4;
+		unsigned b_addr_base = b_addr + offset*4;
+		unsigned c_addr_base = c_addr + offset_c*4;
 		csr_write(VX_MAT_MUL_SIZE,n_tiles);
 		csr_write(VX_MAT_TC_PER_WARP,arg->TC_per_warp);
 		mload (0, a_addr_base);
