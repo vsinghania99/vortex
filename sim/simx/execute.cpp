@@ -2302,7 +2302,12 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
   case TCU: 
 
   { //TODO - make it data-type flexible
-    uint32_t mem_bytes = 4;
+    
+    uint32_t tc_data_size = core_->get_csr(VX_DATA_SIZE, 0, warp_id_);  //CSR instruction before MLOAD will ensure that this csr has value
+    //uint32_t mem_bytes = tc_data_size;
+    uint32_t mem_bytes = 8;
+    DP(3, "mem_bytes=" << mem_bytes << std::endl);
+
     uint16_t tc_size = core_->arch().tc_size();
     //load memory addresses
     uint64_t csr_addr[tc_size*tc_size*3] = {VX_MAT_MUL_0,VX_MAT_MUL_1, VX_MAT_MUL_2, VX_MAT_MUL_3, VX_MAT_MUL_4, VX_MAT_MUL_5, VX_MAT_MUL_6, VX_MAT_MUL_7, VX_MAT_MUL_8, VX_MAT_MUL_9, VX_MAT_MUL_10, VX_MAT_MUL_11};

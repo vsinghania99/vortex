@@ -57,6 +57,8 @@ Core::Core(const SimContext& ctx,
     , pending_icache_(arch_.num_warps())
     , csrs_(arch.num_warps()) 
     , tcore_csrs_(arch.num_warps()) 
+    , mat_size(1)
+    , tc_data_size(4)
     , commit_arbs_(ISSUE_WIDTH)
 {
   char sname[100];
@@ -607,6 +609,8 @@ uint32_t Core::get_csr(uint32_t addr, uint32_t tid, uint32_t wid) {
     return tcore_csrs_[wid][tid].at(VX_MAT_MUL_11);
   case VX_MAT_MUL_SIZE:
     return mat_size;
+  case VX_DATA_SIZE:
+    return tc_data_size;
   default:
     if ((addr >= VX_CSR_MPM_BASE && addr < (VX_CSR_MPM_BASE + 32))
      || (addr >= VX_CSR_MPM_BASE_H && addr < (VX_CSR_MPM_BASE_H + 32))) {
@@ -813,6 +817,9 @@ void Core::set_csr(uint32_t addr, uint32_t value, uint32_t tid, uint32_t wid) {
     break;
   case VX_MAT_MUL_SIZE:
     mat_size = value;
+    break;
+  case VX_DATA_SIZE:
+    tc_data_size = value;
     break;
   default:
     {

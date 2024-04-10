@@ -83,18 +83,26 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	
 	if (((task_id%num_tasks_per_warp)/num_tasks_per_thread) < xyz)
 	{	
-		unsigned a_addr_base = a_addr + offset*4;
-		unsigned b_addr_base = b_addr + offset*4;
-		unsigned c_addr_base = c_addr + offset_c*4;
+		//unsigned a_addr_base = a_addr + offset*4;
+		//unsigned b_addr_base = b_addr + offset*4;
+		//unsigned c_addr_base = c_addr + offset_c*4;
+
+		unsigned a_addr_base = a_addr + offset*arg->data_size;
+		unsigned b_addr_base = b_addr + offset*arg->data_size;
+		unsigned c_addr_base = c_addr + offset_c*arg->data_size;
+
 		csr_write(VX_MAT_MUL_SIZE,n_tiles);
-		vx_printf("a_addr = %x\n", a_addr);
-		vx_printf("a_addr_offset = %x\n", offset*4);
-		vx_printf("a_addr_base = %x\n",a_addr_base);
+		csr_write(VX_DATA_SIZE,arg->data_size);
+		vx_printf("data_size = %d\n",arg->data_size);
+
+
+		//vx_printf("a_addr = %x\n", a_addr);
+		//vx_printf("a_addr_offset = %x\n", offset*4);
+		//vx_printf("a_addr_base = %x\n",a_addr_base);
 		mload (0, a_addr_base);
 		mload (1, b_addr_base);
 		//In case of multiple threads - sync load
 		vx_fence();
-
 
 		mm();   //Assuming padding to ensure matrix size is a multiple of TC_SIZE
 		vx_fence();
