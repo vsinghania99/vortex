@@ -78,6 +78,8 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	int task_id_max = MIN(num_tasks_per_thread, num_output_tiles);
 	
 	int xyz = MIN(num_threads,tc_size*tc_size*n_tiles);
+	int xyz_c = MIN(num_threads,tc_size*tc_size);
+	
 	
 	//unsigned c_addr_base = c_addr + (((task_id*matrix_size)/arg->num_tasks)*4) ; //Fix this
 	
@@ -98,8 +100,8 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 
 		mm();   //Assuming padding to ensure matrix size is a multiple of TC_SIZE
 		vx_fence();
-
-		ms(c_addr_base);
+		if (((task_id%num_tasks_per_warp)/num_tasks_per_thread) < xyz_c)
+			ms(c_addr_base);
 		//In case of multiple threads - sync store
 		vx_fence();
 	}

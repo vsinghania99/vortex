@@ -2373,8 +2373,9 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
           
           //Load A or B (depends on immsrc)
           int loop_offset = 0;
-          for(int tiles = 0 ; tiles < n_tiles ; tiles++)  //What's the HW implication of this?? A counter implementation?
-          {
+          //TODO :: Loop offset needs to be fixed for the functional model
+          //for(int tiles = 0 ; tiles < n_tiles ; tiles++)  //What's the HW implication of this?? A counter implementation?
+          //{
             for (int n=0; n<num_data_per_thread; n++)
             {
               Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
@@ -2387,8 +2388,8 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
               scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n] = *temp_ref;
               //DP(3, "Scratchpad Index: " << loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n << ", Value: " << scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n]);
             }
-            loop_offset += tc_size*tc_size;
-          }
+            //loop_offset += tc_size*tc_size;
+          //}
         }
         rd_write = true;  
       } break;
