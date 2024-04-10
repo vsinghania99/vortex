@@ -33,8 +33,8 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	
 	//int num_data_per_thread = MAX(1, (n_tiles*tc_size*tc_size)/(num_threads))
 	int addr_shift;
-	if (((tc_size*tc_size)/(num_threads)) > 1)
-		addr_shift = (tc_size*tc_size)/(num_threads);
+	if (((tc_size*tc_size*n_tiles)/(num_threads)) > 1)
+		addr_shift = (tc_size*tc_size*n_tiles)/(num_threads);
 	else
 		addr_shift = 1;
 	int num_data_per_op_tile = tc_size*tc_size*n_tiles;
@@ -77,7 +77,7 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	//int task_id_max = MIN(arg->num_tasks, num_data_per_op_tile*num_output_tiles);
 	int task_id_max = MIN(num_tasks_per_thread, num_output_tiles);
 	
-	int xyz = MIN(num_threads,tc_size*tc_size);
+	int xyz = MIN(num_threads,tc_size*tc_size*n_tiles);
 	
 	//unsigned c_addr_base = c_addr + (((task_id*matrix_size)/arg->num_tasks)*4) ; //Fix this
 	

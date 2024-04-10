@@ -2311,23 +2311,46 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     //Number of loads - dependant on the thread config
 
     uint32_t n_tiles = core_->get_csr(VX_MAT_MUL_SIZE, 0, warp_id_);  //CSR instruction before MLOAD will ensure that this csr has value
-    int num_data_per_thread = (tc_size*tc_size)/num_threads;
+    int num_data_per_thread;
+    int num_data_per_thread_st;
+    int num_threads_actv;
+    int num_threads_actv_st;
+    uint32_t data_bytes_load;
+    uint32_t data_bytes_store;
 
-    int num_threads_actv = num_threads;
-    //int num_threads_actv = num_threads;
+    //LOAD
+    if(num_threads > TC_SIZE*TC_SIZE*n_tiles)
+    { 
+      num_threads_actv = TC_SIZE*TC_SIZE*n_tiles;
+      num_data_per_thread = 1;
+    }
+    else
+    {
+      num_threads_actv = num_threads;
+      num_data_per_thread = (tc_size*tc_size*n_tiles)/num_threads;
+    }
+    data_bytes_load = mem_bytes*num_data_per_thread;
+
+    //STORE
+    
+    DP(3, "DEBUG :: num_threads = " << num_threads);
+    DP(3, "DEBUG :: TC_SIZE*TC_SIZE = " << TC_SIZE*TC_SIZE);
+    //DP(3, "imm = " << immsrc);
     
     if(num_threads > TC_SIZE*TC_SIZE)
     { 
-      num_threads_actv = TC_SIZE*TC_SIZE;
-      num_data_per_thread = 1;
+      num_threads_actv_st = TC_SIZE*TC_SIZE;
+      num_data_per_thread_st = 1;
     }
-  
-    uint32_t data_bytes_load = mem_bytes*num_data_per_thread*n_tiles;
-    uint32_t data_bytes_store = (mem_bytes*num_data_per_thread);
-
+    else
+    {
+      num_threads_actv_st = num_threads;
+      num_data_per_thread_st = (tc_size*tc_size)/num_threads;
+    }
+    data_bytes_store = mem_bytes*num_data_per_thread_st;
+    
     DP(3, "Num Tiles=" << n_tiles << std::endl);
-    //int num_data_per_thread = (tc_size*tc_size*n_tiles)/num_threads;
-
+    
     switch (func3) {
       case 0: 
       { //Matrix Load  
@@ -2357,11 +2380,11 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
               Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
               core_->dcache_read(temp_ref, (base_addr+(n*mem_bytes)+(loop_offset*mem_bytes)), mem_bytes);
 
-              uint32_t csr_index = n + (immsrc*num_data_per_thread);
-              core_->set_csr(csr_addr[csr_index], *temp_ref, t, warp_id_);
+              //uint32_t csr_index = n + (immsrc*num_data_per_thread);
+              //core_->set_csr(csr_addr[csr_index], *temp_ref, t, warp_id_);
               //csr-> scratchpad (TODO :: can intermediate step of moving to CSR be skipped?)
 
-              scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n] = core_->get_csr(csr_addr[(immsrc*num_data_per_thread) + n], t, warp_id_);
+              scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n] = *temp_ref;
               DP(3, "imm = " << immsrc);
               DP(3, "Scratchpad Index: " << loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n << ", Value: " << scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n]);
             }
@@ -2379,7 +2402,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
         auto trace_data = std::make_shared<LsuTraceData>(num_threads);
         trace->data = trace_data;
 
-        for (uint32_t t = thread_start; t < num_threads_actv; ++t) 
+        for (uint32_t t = thread_start; t < num_threads_actv_st; ++t) 
         {
           if (!tmask_.test(t))
             continue;
@@ -2388,16 +2411,16 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
           trace_data->mem_addrs.at(t) = {base_addr, data_bytes_store};
 
           //Store C
-          for (int n=0; n<num_data_per_thread; n++)
+          for (int n=0; n<num_data_per_thread_st; n++)
           {
             uint64_t mem_addr = (base_addr+(n*mem_bytes));
-            uint32_t csr_index = (2*num_data_per_thread) + n;
+            uint32_t csr_index = (2*num_data_per_thread_st) + n;
             uint32_t scratchpad_index = (tc_size*tc_size*2) + (t*num_data_per_thread) + n;
             
             //scratchpad -> csr (TODO :: can intermediate step of moving to CSR be skipped?)
-            core_->set_csr(csr_addr[(2*num_data_per_thread) + n], scratchpad[(n_tiles*tc_size*tc_size*2) + (t*num_data_per_thread) + n], t, warp_id_);
+            //core_->set_csr(csr_addr[(2*num_data_per_thread) + n], scratchpad[(n_tiles*tc_size*tc_size*2) + (t*num_data_per_thread) + n], t, warp_id_);
             Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
-            *temp_ref = core_->get_csr(csr_addr[(num_data_per_thread*2) + n], t, warp_id_);
+            *temp_ref = scratchpad[(n_tiles*tc_size*tc_size*2) + (t*num_data_per_thread_st) + n];
             core_->dcache_write(temp_ref, base_addr+(n*mem_bytes), mem_bytes);  
           }
         }

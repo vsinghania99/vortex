@@ -2,7 +2,6 @@
 #define _COMMON_H_
 
 #define KERNEL_ARG_DEV_MEM_ADDR 0x7ffff000
-#define TC_SIZE     2
 
 //TODO - check if passing #work/thread is okay?
 typedef struct {
