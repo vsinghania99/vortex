@@ -234,27 +234,7 @@ void LsuUnit::tick() {
         }
 
         auto tag = pending_rd_reqs_.allocate({trace, addr_count});
-        if ((trace->lsu_type == LsuType::TCU_LOAD) || (trace->lsu_type == LsuType::TCU_STORE))
-        {
-            DT(3, "req_per_thread = " << req_per_thread); 
-            DT(3, "TCU LOAD tag = " << tag); 
-            DT(3, "trace_data->mem_addrs.at(0 + t0).size = " << trace_data->mem_addrs.at(0 + t0).size);
-            DT(3, "t0 = " << t0);
-            
-            DT(3, "trace->pid = " << trace->pid);
-            DT(3, *trace);
-            DT(3, "trace->tmask = " << trace->tmask);
-
-        }
-        else if ((trace->lsu_type == LsuType::TCU_LOAD) || (trace->lsu_type == LsuType::TCU_STORE))
-        {
-            DT(3, "TCU STORE tag = " << tag); 
-        }
-        else
-        {
-            DT(3, "LW tag = " << tag); 
-        }
-
+       
         for (uint32_t t = 0; t < num_lanes_; ++t) {
             if (!trace->tmask.test(t0 + t))
                 continue;
