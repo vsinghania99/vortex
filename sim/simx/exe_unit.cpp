@@ -174,7 +174,7 @@ void LsuUnit::tick() {
         auto& output = Outputs.at(iw);
         auto trace = input.front();
         auto trace_data = std::dynamic_pointer_cast<LsuTraceData>(trace->data);
-
+        
         auto t0 = trace->pid * num_lanes_;
 
         if (trace->lsu_type == LsuType::FENCE) {
@@ -222,9 +222,11 @@ void LsuUnit::tick() {
         } else {
             addr_count = trace->tmask.count();
         }
+        
         //Assumption : each load = 4B
         //size for all threads are equal {size = num_data_per_thread*4 ; passed from execute.cpp}
         uint16_t req_per_thread = (trace_data->mem_addrs.at(0 + t0).size)/4;
+
 
         if ((trace->lsu_type == LsuType::TCU_LOAD) || (trace->lsu_type == LsuType::TCU_STORE))
         {
@@ -232,7 +234,7 @@ void LsuUnit::tick() {
         }
 
         auto tag = pending_rd_reqs_.allocate({trace, addr_count});
-
+       
         for (uint32_t t = 0; t < num_lanes_; ++t) {
             if (!trace->tmask.test(t0 + t))
                 continue;
@@ -256,7 +258,7 @@ void LsuUnit::tick() {
                         
                     dcache_req_port.send(mem_req, 1);
                     DT(3, "dcache-req: addr=0x" << std::hex << mem_req.addr << ", tag=" << tag 
-                        << ", lsu_type=" << trace->lsu_type << ", tid=" << t << ", addr_type=" << mem_req.type << ", " << *trace);
+                        << ", lsu_type=" << trace->lsu_type << ", tid=" << t << ", pid=" << trace->pid << ", addr_type=" << mem_req.type << ", " << *trace);
                 
                     if (is_write) {
                         ++core_->perf_stats_.stores;

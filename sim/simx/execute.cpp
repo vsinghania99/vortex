@@ -2430,9 +2430,11 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
                 for (int j = 0; j < tc_size; j++) { //COL-2
                   int sum = 0;
                   for (int k = 0; k < tc_size; k++){ //COL-1
+                    //DP(3, "Multiplying: A index = " << loop_offset + i * tc_size + k << "; B index = " << loop_offset + n_tiles*tc_size*tc_size + (k * tc_size + j));
                     sum = sum + scratchpad[loop_offset + i * tc_size + k] *scratchpad[loop_offset + n_tiles*tc_size*tc_size + (k * tc_size + j)];
                   }
                   scratchpad[(n_tiles*tc_size*tc_size*2) + (i * tc_size + j)] += sum; //[i * col2 + j] = sum
+                  //DP(3, "Scratchpad Index: " << (n_tiles*tc_size*tc_size*2) + (i * tc_size + j) << " , Value=" << scratchpad[(n_tiles*tc_size*tc_size*2) + (i * tc_size + j)]);
                 }
               }
               loop_offset += tc_size*tc_size; //Move to the next tiled matmul fragment

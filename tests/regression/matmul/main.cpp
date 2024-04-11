@@ -34,6 +34,7 @@ static void matmul_cpu(TYPE* out, const TYPE* A, const TYPE* B, uint32_t width, 
           sum += A[row * width + e] * B[e * width + col];
       }
       out[row * width + col] = sum;
+      std::cout << "C[" << row * width + col << "] = " << out[row * width + col] << std::endl;
     }
   }
 }
@@ -101,13 +102,17 @@ int run_test(const kernel_arg_t& kernel_arg,
     int n_tiles = (matrix_size/TC_SIZE);
     int tc_size_f = TC_SIZE*TC_SIZE;
 
+  //converting buf ptr (tile by tile) to CPU style linear (row by row)
   for(int k = 0; k < matrix_size/TC_SIZE; k+= 1)
   {
     for(int j = 0; j < matrix_size; j+= TC_SIZE)
     {
       for(int i =0; i < TC_SIZE*TC_SIZE; i++)
       {
-        Result[ matrix_size*TC_SIZE*k+TC_SIZE*j+i]  = buf_ptr[ TC_SIZE*matrix_size*k +j+ (i/TC_SIZE)*matrix_size +i%(TC_SIZE)];
+        std::cout << "GPU idx = " << TC_SIZE*matrix_size*k +j+ (i/TC_SIZE)*matrix_size +i%(TC_SIZE) << "; CPU idx = " << matrix_size*TC_SIZE*k+TC_SIZE*j+i << std::endl;
+        std::cout << "GPU value = " << std::hex << buf_ptr[ TC_SIZE*matrix_size*k +j+ (i/TC_SIZE)*matrix_size +i%(TC_SIZE)] << std::endl;
+        //Result[ matrix_size*TC_SIZE*k+TC_SIZE*j+i]  = buf_ptr[ TC_SIZE*matrix_size*k +j+ (i/TC_SIZE)*matrix_size +i%(TC_SIZE)];
+        Result[ TC_SIZE*matrix_size*k +j+ (i/TC_SIZE)*matrix_size +i%(TC_SIZE)]  = buf_ptr[matrix_size*TC_SIZE*k+TC_SIZE*j+i];
       }
     }    
   }
@@ -116,6 +121,9 @@ int run_test(const kernel_arg_t& kernel_arg,
       //int ref = i + i; 
       int cur = Result[i];
       if (cur != refs[i]) {
+
+        std::cout << "index not matching " << i << std::endl;
+        std::cout << "GPU : " << std::hex << cur << "; CPU : " << std::hex << refs[i] << std::endl;
         ++errors;
       }
     }
