@@ -97,22 +97,22 @@ int run_test(const kernel_arg_t& kernel_arg,
   {
     int errors = 0;
     auto buf_ptr = (int32_t*)staging_buf.data();
-    
+
+    uint64_t tc_size = kernel_arg.tc_size;
+    std::cout << "tc_size = " << tc_size << std::endl;
+
     int Result[matrix_size*matrix_size];
-    int n_tiles = (matrix_size/TC_SIZE);
-    int tc_size_f = TC_SIZE*TC_SIZE;
+    int n_tiles = (matrix_size/tc_size);
+    int tc_size_f = tc_size*tc_size;
 
   //converting buf ptr (tile by tile) to CPU style linear (row by row)
-  for(int k = 0; k < matrix_size/TC_SIZE; k+= 1)
+  for(int k = 0; k < matrix_size/tc_size; k+= 1)
   {
-    for(int j = 0; j < matrix_size; j+= TC_SIZE)
+    for(int j = 0; j < matrix_size; j+= tc_size)
     {
-      for(int i =0; i < TC_SIZE*TC_SIZE; i++)
+      for(int i =0; i < tc_size*tc_size; i++)
       {
-        std::cout << "GPU idx = " << TC_SIZE*matrix_size*k +j+ (i/TC_SIZE)*matrix_size +i%(TC_SIZE) << "; CPU idx = " << matrix_size*TC_SIZE*k+TC_SIZE*j+i << std::endl;
-        std::cout << "GPU value = " << std::hex << buf_ptr[ TC_SIZE*matrix_size*k +j+ (i/TC_SIZE)*matrix_size +i%(TC_SIZE)] << std::endl;
-        //Result[ matrix_size*TC_SIZE*k+TC_SIZE*j+i]  = buf_ptr[ TC_SIZE*matrix_size*k +j+ (i/TC_SIZE)*matrix_size +i%(TC_SIZE)];
-        Result[ TC_SIZE*matrix_size*k +j+ (i/TC_SIZE)*matrix_size +i%(TC_SIZE)]  = buf_ptr[matrix_size*TC_SIZE*k+TC_SIZE*j+i];
+        Result[ tc_size*matrix_size*k +j+ (i/tc_size)*matrix_size +i%(tc_size)]  = buf_ptr[matrix_size*tc_size*k+tc_size*j+i];
       }
     }    
   }
@@ -121,9 +121,6 @@ int run_test(const kernel_arg_t& kernel_arg,
       //int ref = i + i; 
       int cur = Result[i];
       if (cur != refs[i]) {
-
-        std::cout << "index not matching " << i << std::endl;
-        std::cout << "GPU : " << std::hex << cur << "; CPU : " << std::hex << refs[i] << std::endl;
         ++errors;
       }
     }
@@ -152,21 +149,19 @@ int main(int argc, char *argv[]) {
   std::cout << "open device connection" << std::endl;  
   RT_CHECK(vx_dev_open(&device));
 
-  uint64_t num_cores, num_warps, num_threads;
+  uint64_t num_cores, num_warps, num_threads, tc_size;
   RT_CHECK(vx_dev_caps(device, VX_CAPS_NUM_CORES, &num_cores));
   RT_CHECK(vx_dev_caps(device, VX_CAPS_NUM_WARPS, &num_warps));
   RT_CHECK(vx_dev_caps(device, VX_CAPS_NUM_THREADS, &num_threads));
+  RT_CHECK(vx_dev_caps(device, VX_CAPS_TC_SIZE, &tc_size));
+  
 
   //TODO - can be changed
   //Number of output tiles * number of threads
-  uint32_t num_tasks  = (matrix_size*matrix_size)/(TC_SIZE*TC_SIZE)*num_threads;
+  uint32_t num_tasks  = (matrix_size*matrix_size)/(tc_size*tc_size)*num_threads;
   
-  std::cout << "DEBUG: Matrix Size: " << matrix_size << std::endl;
-  std::cout << "DEBUG: TC Size: " << TC_SIZE << std::endl;
-  std::cout << "DEBUG: Num Threads: " << num_threads << std::endl;
-
   //size of each operand
-  uint32_t buf_size   =  ((matrix_size*matrix_size)/(TC_SIZE*TC_SIZE))*(matrix_size/(TC_SIZE))*(TC_SIZE*TC_SIZE)*4;
+  uint32_t buf_size   =  ((matrix_size*matrix_size)/(tc_size*tc_size))*(matrix_size/(tc_size))*(tc_size*tc_size)*4;
 
   //256
   std::cout << "buffer size: " << buf_size << " bytes" << std::endl;
@@ -189,12 +184,13 @@ int main(int argc, char *argv[]) {
   kernel_arg.num_warps = num_warps;
   //1
   kernel_arg.matrix_size = matrix_size;
+  kernel_arg.tc_size = tc_size;
 
   std::cout << "num_tasks = " << std::hex << kernel_arg.num_tasks << std::endl;
   std::cout << "matrix_size = " << std::hex << kernel_arg.matrix_size << std::endl;
   
   
-  uint32_t offset = (matrix_size*matrix_size)/(TC_SIZE*TC_SIZE) * (matrix_size/TC_SIZE) * (TC_SIZE*TC_SIZE) * 4;
+  uint32_t offset = (matrix_size*matrix_size)/(tc_size*tc_size) * (matrix_size/tc_size) * (tc_size*tc_size) * 4;
   
   //TODO - does this need to be fixed?
   uint32_t base_addr = 0x40;
@@ -216,8 +212,8 @@ int main(int argc, char *argv[]) {
   memcpy(staging_buf.data(), &kernel_arg, sizeof(kernel_arg_t));
   RT_CHECK(vx_copy_to_dev(device, KERNEL_ARG_DEV_MEM_ADDR, staging_buf.data(), sizeof(kernel_arg_t)));
 
-  uint32_t tc_size_f = TC_SIZE*TC_SIZE;
-  uint32_t n_tiles = matrix_size/TC_SIZE;
+  uint32_t tc_size_f = tc_size*tc_size;
+  uint32_t n_tiles = matrix_size/tc_size;
   
   // generate source data
   std::vector<int> src_A(buf_size/4);
@@ -256,9 +252,9 @@ int main(int argc, char *argv[]) {
       
         for(uint32_t j=0; j< n_tiles; j++)
         {
-          for(int t=0; t < TC_SIZE*TC_SIZE; t++)
+          for(int t=0; t < tc_size*tc_size; t++)
           { 
-          A_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j + t]   = src_A[k*TC_SIZE*matrix_size+ TC_SIZE*j +(t/TC_SIZE)*matrix_size + t%TC_SIZE];
+          A_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j + t]   = src_A[k*tc_size*matrix_size+ tc_size*j +(t/tc_size)*matrix_size + t%tc_size];
           }
         }
     }
@@ -274,9 +270,9 @@ int main(int argc, char *argv[]) {
       //traverse through tiles for one output tile
       for(uint32_t j=0; j< n_tiles; j++)
       {
-        for(int t=0; t < TC_SIZE*TC_SIZE; t++)
+        for(int t=0; t < tc_size*tc_size; t++)
         {
-          B_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j + t]   = src_B[i*TC_SIZE+ TC_SIZE*matrix_size*j +(t/TC_SIZE)*matrix_size + t%TC_SIZE];
+          B_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j + t]   = src_B[i*tc_size+ tc_size*matrix_size*j +(t/tc_size)*matrix_size + t%tc_size];
         }
       }
     }

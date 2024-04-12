@@ -34,6 +34,8 @@ static void show_usage() {
 uint32_t num_threads = NUM_THREADS;
 uint32_t num_warps = NUM_WARPS;
 uint32_t num_cores = NUM_CORES;
+uint32_t tc_size = TC_SIZE;
+
 bool showStats = false;
 bool riscv_test = false;
 const char* program = nullptr;
@@ -84,7 +86,7 @@ int main(int argc, char **argv) {
 
   {
     // create processor configuation
-    Arch arch(num_threads, num_warps, num_cores);
+    Arch arch(num_threads, num_warps, num_cores, tc_size);
 
     // create memory module
     RAM ram(RAM_PAGE_SIZE);

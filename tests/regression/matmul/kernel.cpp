@@ -10,17 +10,22 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	int32_t* src1_ptr = (int32_t*)arg->src1_addr;
 	int32_t* dst_ptr  = (int32_t*)arg->dst_addr;
 		
+	
+
 	unsigned a_addr = reinterpret_cast<unsigned>(src0_ptr);
 	unsigned b_addr = reinterpret_cast<unsigned>(src1_ptr);
 	unsigned c_addr = reinterpret_cast<unsigned>(dst_ptr);
 
+	vx_printf("src0 base in kernel = %x\n", a_addr);
+
 	//TODO - check if okay to send base address like this?
 	//TODO - make flexible for data types
 	
-	unsigned num_threads = arg->num_tasks / ((arg->matrix_size*arg->matrix_size)/(TC_SIZE*TC_SIZE));
+	uint32_t tc_size = arg->tc_size;
+	unsigned num_threads = arg->num_tasks / ((arg->matrix_size*arg->matrix_size)/(tc_size*tc_size));
 	int num_warps = arg->num_warps;
 	uint32_t matrix_size = arg->matrix_size;
-	uint32_t tc_size = TC_SIZE;
+	
 	int n_tiles = matrix_size/tc_size;
 	int num_output_tiles = (matrix_size*matrix_size)/(tc_size*tc_size);
 
@@ -44,17 +49,10 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	int task_id_first_warp = task_id%num_tasks_per_warp;
 	int offset = ((task_id_first_warp/num_tasks_per_thread)*addr_shift) + ((task_id_first_warp%num_tasks_per_thread)*num_data_per_op_tile);
 
-	vx_printf("task_id = %d\n", task_id);
-	vx_printf("(task_id/num_tasks_per_thread) = %d\n", task_id/num_tasks_per_thread);
-	vx_printf("num_tasks_per_thread = %d\n", num_tasks_per_thread);
-	
-
 	//TODO :: enable this if bigger csr space available and lesser #transfers to be enabled
 	//int offset = ((task_id/num_tasks_per_thread)*num_data_per_thread) + ((task_id%num_tasks_per_thread)*num_data_per_op_tile)
 	//Generalisation for all warps
 	offset = offset + (num_data_per_warp*(task_id/num_tasks_per_warp));
-
-	vx_printf("task_id = %d; offset_1st_warp = %d; offset_actual = %d\n",task_id,(offset - (num_data_per_warp*(task_id/num_tasks_per_warp))), offset);
 
 	int addr_shift_c;
 	if (((tc_size*tc_size)/(num_threads)) > 1)
@@ -66,12 +64,6 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	int num_data_per_warp_c = num_data_per_warp/n_tiles;
 	int offset_c = ((task_id_first_warp/num_tasks_per_thread)*addr_shift_c) + ((task_id_first_warp%num_tasks_per_thread)*num_data_per_op_tile_c);
 	offset_c = offset_c + (num_data_per_warp_c*(task_id/num_tasks_per_warp));
-
-	vx_printf("offset_c = %d\n",offset_c);
-
-	//unsigned task_id_max = arg->num_tasks;	
-	//unsigned offset = (TC_SIZE*TC_SIZE*n_tiles)*((task_id)%(arg->num_tasks/(num_threads))) + (TC_SIZE*TC_SIZE/num_threads)*((task_id)/(arg->num_tasks/(num_threads)));
-	//unsigned offset_c = (TC_SIZE*TC_SIZE)*((task_id)%(arg->num_tasks/num_threads)) + (TC_SIZE*TC_SIZE/num_threads)*((task_id)/(arg->num_tasks/(num_threads)));
 
 	//TODO : change this during thread optimization
 	//int task_id_max = MIN(arg->num_tasks, num_data_per_op_tile*num_output_tiles);
@@ -87,16 +79,13 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 		unsigned b_addr_base = b_addr + offset*4;
 		unsigned c_addr_base = c_addr + offset_c*4;
 		csr_write(VX_MAT_MUL_SIZE,n_tiles);
-		vx_printf("a_addr = %x\n", a_addr);
-		vx_printf("a_addr_offset = %x\n", offset*4);
-		vx_printf("a_addr_base = %x\n",a_addr_base);
 		mload (0, a_addr_base);
 		mload (1, b_addr_base);
 		//In case of multiple threads - sync load
 		vx_fence();
 
 
-		mm();   //Assuming padding to ensure matrix size is a multiple of TC_SIZE
+		mm();   //Assuming padding to ensure matrix size is a multiple of tc_size
 		vx_fence();
 
 		ms(c_addr_base);
