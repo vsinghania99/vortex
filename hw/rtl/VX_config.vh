@@ -275,6 +275,11 @@
 `define NUM_TCU_LANES   1
 `endif
 
+// Number of TCU units
+`ifndef NUM_TCU_BLOCKS
+`define NUM_TCU_BLOCKS  `ISSUE_WIDTH
+`endif
+
 // Number of SFU units
 `ifndef NUM_SFU_LANES
 `define NUM_SFU_LANES   `MIN(`NUM_THREADS, 4)

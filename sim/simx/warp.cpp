@@ -30,7 +30,7 @@ Warp::Warp(Core *core, uint32_t warp_id)
     , ireg_file_(core->arch().num_threads(), std::vector<Word>(core->arch().num_regs()))
     , freg_file_(core->arch().num_threads(), std::vector<uint64_t>(core->arch().num_regs()))
     , vreg_file_(core->arch().num_threads(), std::vector<Byte>(core->arch().vsize()))
-    , scratchpad(std::vector<Word>(core->arch().tc_size() * core->arch().tc_size() * 100)) //Fix this
+    , scratchpad(std::vector<Word>(core->arch().tc_size() * core->arch().tc_size() * 32768)) //Fix this
 {
   this->reset();
 }

@@ -106,7 +106,7 @@ Core::Core(const SimContext& ctx,
   dispatchers_.at((int)ExeType::LSU) = SimPlatform::instance().create_object<Dispatcher>(arch, 2, 1, NUM_LSU_LANES);
   dispatchers_.at((int)ExeType::SFU) = SimPlatform::instance().create_object<Dispatcher>(arch, 2, 1, NUM_SFU_LANES);
   //TODO - check what these arguments are in create_object
-  dispatchers_.at((int)ExeType::TCU) = SimPlatform::instance().create_object<Dispatcher>(arch, 2, NUM_TCU_LANES, NUM_TCU_LANES);
+  dispatchers_.at((int)ExeType::TCU) = SimPlatform::instance().create_object<Dispatcher>(arch, 2, NUM_TCU_BLOCKS, NUM_TCU_LANES);
   
   // initialize execute units
   exe_units_.at((int)ExeType::ALU) = SimPlatform::instance().create_object<AluUnit>(this);

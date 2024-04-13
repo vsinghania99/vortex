@@ -308,7 +308,11 @@ void LsuUnit::tick() {
 }
 
 //TODO - change this to include pending loads, 
-TcuUnit::TcuUnit(const SimContext& ctx, Core* core) : ExeUnit(ctx, core, "TCU") {}
+TcuUnit::TcuUnit(const SimContext& ctx, Core* core) 
+    : ExeUnit(ctx, core, "TCU")
+    , tc_size (core_->arch().tc_size())
+    {}
+
 
 //TODO - fix this
 //void TcuUnit::reset() {
@@ -325,14 +329,18 @@ void TcuUnit::tick() {
             continue;
         auto& output = Outputs.at(i);
         auto trace = input.front();
+        uint32_t n_tiles = core_->get_csr(VX_MAT_MUL_SIZE, 0, 0);
         switch (trace->tcu_type) {
         //TODO - cycles for multiplication need to be fixed 
         //[should depend on matrix size and tc size]
-        case TCUType::TCU_MUL:
-            output.send(trace, 2);
-            break;
-        default:
-            std::abort();
+            case TCUType::TCU_MUL:
+            {    //mat size = n_tiles * tc_size
+                int matmul_latency = (n_tiles * tc_size) + tc_size + tc_size;
+                output.send(trace, matmul_latency);
+                break;
+            }
+            default:
+                std::abort();
         }    
         DT(3, "pipeline-execute: op=" << trace->tcu_type << ", " << *trace);
         input.pop();

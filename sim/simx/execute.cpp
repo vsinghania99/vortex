@@ -2357,11 +2357,11 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
               Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
               core_->dcache_read(temp_ref, (base_addr+(n*mem_bytes)+(loop_offset*mem_bytes)), mem_bytes);
 
-              uint32_t csr_index = n + (immsrc*num_data_per_thread);
-              core_->set_csr(csr_addr[csr_index], *temp_ref, t, warp_id_);
+              //uint32_t csr_index = n + (immsrc*num_data_per_thread);
+              //core_->set_csr(csr_addr[csr_index], *temp_ref, t, warp_id_);
               //csr-> scratchpad (TODO :: can intermediate step of moving to CSR be skipped?)
 
-              scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n] = core_->get_csr(csr_addr[(immsrc*num_data_per_thread) + n], t, warp_id_);
+              scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n] = *temp_ref;
               //DP(3, "Scratchpad Index: " << loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n << ", Value: " << scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n]);
             }
             loop_offset += tc_size*tc_size;

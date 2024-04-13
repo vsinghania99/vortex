@@ -109,8 +109,6 @@ int run_test(const kernel_arg_t& kernel_arg,
     {
       for(int i =0; i < TC_SIZE*TC_SIZE; i++)
       {
-        std::cout << "GPU idx = " << TC_SIZE*matrix_size*k +j+ (i/TC_SIZE)*matrix_size +i%(TC_SIZE) << "; CPU idx = " << matrix_size*TC_SIZE*k+TC_SIZE*j+i << std::endl;
-        std::cout << "GPU value = " << std::hex << buf_ptr[ TC_SIZE*matrix_size*k +j+ (i/TC_SIZE)*matrix_size +i%(TC_SIZE)] << std::endl;
         //Result[ matrix_size*TC_SIZE*k+TC_SIZE*j+i]  = buf_ptr[ TC_SIZE*matrix_size*k +j+ (i/TC_SIZE)*matrix_size +i%(TC_SIZE)];
         Result[ TC_SIZE*matrix_size*k +j+ (i/TC_SIZE)*matrix_size +i%(TC_SIZE)]  = buf_ptr[matrix_size*TC_SIZE*k+TC_SIZE*j+i];
       }
@@ -121,9 +119,6 @@ int run_test(const kernel_arg_t& kernel_arg,
       //int ref = i + i; 
       int cur = Result[i];
       if (cur != refs[i]) {
-
-        std::cout << "index not matching " << i << std::endl;
-        std::cout << "GPU : " << std::hex << cur << "; CPU : " << std::hex << refs[i] << std::endl;
         ++errors;
       }
     }
@@ -161,10 +156,6 @@ int main(int argc, char *argv[]) {
   //Number of output tiles * number of threads
   uint32_t num_tasks  = (matrix_size*matrix_size)/(TC_SIZE*TC_SIZE)*num_threads;
   
-  std::cout << "DEBUG: Matrix Size: " << matrix_size << std::endl;
-  std::cout << "DEBUG: TC Size: " << TC_SIZE << std::endl;
-  std::cout << "DEBUG: Num Threads: " << num_threads << std::endl;
-
   //size of each operand
   uint32_t buf_size   =  ((matrix_size*matrix_size)/(TC_SIZE*TC_SIZE))*(matrix_size/(TC_SIZE))*(TC_SIZE*TC_SIZE)*4;
 
@@ -190,10 +181,6 @@ int main(int argc, char *argv[]) {
   //1
   kernel_arg.matrix_size = matrix_size;
 
-  std::cout << "num_tasks = " << std::hex << kernel_arg.num_tasks << std::endl;
-  std::cout << "matrix_size = " << std::hex << kernel_arg.matrix_size << std::endl;
-  
-  
   uint32_t offset = (matrix_size*matrix_size)/(TC_SIZE*TC_SIZE) * (matrix_size/TC_SIZE) * (TC_SIZE*TC_SIZE) * 4;
   
   //TODO - does this need to be fixed?
