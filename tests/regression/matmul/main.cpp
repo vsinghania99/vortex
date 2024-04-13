@@ -166,7 +166,7 @@ int main(int argc, char *argv[]) {
   std::cout << "DEBUG: Num Threads: " << num_threads << std::endl;
 
   //size of each operand
-  uint32_t buf_size   =  ((matrix_size*matrix_size)/(TC_SIZE*TC_SIZE))*(matrix_size/(TC_SIZE))*(TC_SIZE*TC_SIZE)*4;
+  uint32_t buf_size   =  (matrix_size*matrix_size)*4;
 
   //256
   std::cout << "buffer size: " << buf_size << " bytes" << std::endl;
@@ -193,8 +193,7 @@ int main(int argc, char *argv[]) {
   std::cout << "num_tasks = " << std::hex << kernel_arg.num_tasks << std::endl;
   std::cout << "matrix_size = " << std::hex << kernel_arg.matrix_size << std::endl;
   
-  
-  uint32_t offset = (matrix_size*matrix_size)/(TC_SIZE*TC_SIZE) * (matrix_size/TC_SIZE) * (TC_SIZE*TC_SIZE) * 4;
+  uint32_t offset = (matrix_size*matrix_size)* 4;
   
   //TODO - does this need to be fixed?
   uint32_t base_addr = 0x40;
@@ -245,54 +244,14 @@ int main(int argc, char *argv[]) {
   int* A_mat = (int*)calloc(buf_size/4,sizeof(int));
   int* B_mat = (int*)calloc(buf_size/4,sizeof(int));
 
-  //Demand matrix creation for A
-    //traverse through the rows
-  for(uint32_t k=0; k<n_tiles; k++)
-  {
-    //traverse through output tiles in a row
-    for(uint32_t i=0; i<n_tiles; i++)
-    {
-      //traverse through tiles for one output tile
-      
-        for(uint32_t j=0; j< n_tiles; j++)
-        {
-          for(int t=0; t < TC_SIZE*TC_SIZE; t++)
-          { 
-          A_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j + t]   = src_A[k*TC_SIZE*matrix_size+ TC_SIZE*j +(t/TC_SIZE)*matrix_size + t%TC_SIZE];
-          }
-        }
-    }
-  }
-
-  //Demand matrix creation for B
-  //traverse through the rows
-  for(uint32_t k=0; k<n_tiles; k++)
-  {
-    //traverse through output tiles in a row
-    for(uint32_t i=0; i<n_tiles; i++)
-    {
-      //traverse through tiles for one output tile
-      for(uint32_t j=0; j< n_tiles; j++)
-      {
-        for(int t=0; t < TC_SIZE*TC_SIZE; t++)
-        {
-          B_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j + t]   = src_B[i*TC_SIZE+ TC_SIZE*matrix_size*j +(t/TC_SIZE)*matrix_size + t%TC_SIZE];
-        }
-      }
-    }
-  }
-  
- // upload source buffer0
+  // upload source buffer0
   {
     staging_buf.resize(buf_size);
     std::cout << "upload source buffer0" << std::endl;
     auto buf_ptr = (int32_t*)staging_buf.data();
     
-    for (uint32_t i = 0; i < buf_size/4; i+=4) {
-      buf_ptr[i+0] = A_mat[i];
-      buf_ptr[i+1] = A_mat[i+1];
-      buf_ptr[i+2] = A_mat[i+2];
-      buf_ptr[i+3] = A_mat[i+3];
+    for (uint32_t i = 0; i < buf_size; i+=1) {
+      buf_ptr[i] = src_A[i];
     }  
     
     RT_CHECK(vx_copy_to_dev(device, kernel_arg.src0_addr, staging_buf.data(), buf_size));
@@ -302,11 +261,8 @@ int main(int argc, char *argv[]) {
   {
     std::cout << "upload source buffer1" << std::endl;
     auto buf_ptr = (int32_t*)staging_buf.data();
-    for (uint32_t i = 0; i < buf_size/4; i+=4) {
-      buf_ptr[i+0] = B_mat[i];
-      buf_ptr[i+1] = B_mat[i+1];
-      buf_ptr[i+2] = B_mat[i+2];
-      buf_ptr[i+3] = B_mat[i+3];
+    for (uint32_t i = 0; i < buf_size; i+=1) {
+      buf_ptr[i] = src_B[i];
     }  
     RT_CHECK(vx_copy_to_dev(device, kernel_arg.src1_addr, staging_buf.data(), buf_size));
   }
@@ -321,7 +277,6 @@ int main(int argc, char *argv[]) {
     }  
     RT_CHECK(vx_copy_to_dev(device, kernel_arg.dst_addr, staging_buf.data(), buf_size));  
   }
-
 
   // run tests
   std::cout << "run tests" << std::endl;
