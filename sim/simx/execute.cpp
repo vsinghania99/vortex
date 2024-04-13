@@ -2362,8 +2362,8 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
               core_->set_csr(csr_addr[csr_index], *temp_ref, t, warp_id_);
               //csr-> scratchpad (TODO :: can intermediate step of moving to CSR be skipped?)
 
-              scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n] = core_->get_csr(csr_addr[(immsrc*num_data_per_thread) + n], t, warp_id_);
-              //DP(3, "Scratchpad Index: " << loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n << ", Value: " << scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n]);
+              scratchpad[loop_offset + (immsrc*(n_tiles)*(n_tiles)*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n] = core_->get_csr(csr_addr[csr_index], t, warp_id_);
+              DP(3, "Scratchpad Index: " << loop_offset + (immsrc*(n_tiles)*(n_tiles)*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n << " , Value=" <<  scratchpad[loop_offset + (immsrc*(n_tiles)*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n]);
             }
             //loop_offset += tc_size*tc_size;
           //}
@@ -2440,20 +2440,20 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
               for (int i = 0; i < tc_size; i++) { //ROW-1
                 for (int j = 0; j < tc_size; j++) { //COL-2
                   int sum = 0;
-                  for (int k = 0; k < tc_size; k++){ //COL-1
-                    //DP(3, "Multiplying: A index = " << loop_offset + i * tc_size + k << "; B index = " << loop_offset + n_tiles*tc_size*tc_size + (k * tc_size + j));
-                    sum = sum + scratchpad[loop_offset + i * tc_size + k] *scratchpad[loop_offset + n_tiles*tc_size*tc_size + (k * tc_size + j)];
+                  for (int k = 0; k < tc_size; k++)
+                  { //COL-1
+
+                    sum = sum + scratchpad[loop_offset + thread_offset*n_tiles + i * tc_size + k] *scratchpad[loop_offset + thread_offset*n_tiles + offset_b + (k * tc_size + j)];
                   }
-                  scratchpad[(n_tiles*tc_size*tc_size*2) + (i * tc_size + j)] += sum; //[i * col2 + j] = sum
-                  //DP(3, "Scratchpad Index: " << (n_tiles*tc_size*tc_size*2) + (i * tc_size + j) << " , Value=" << scratchpad[(n_tiles*tc_size*tc_size*2) + (i * tc_size + j)]);
+                  scratchpad[accu_offset + thread_offset +(i * tc_size + j)] += sum; //[i * col2 + j] = sum
+                  DP(3, "Scratchpad Index: " << accu_offset + (i * tc_size + j) << " , Value=" << scratchpad[offset_b + (i * tc_size + j)]);
+
                 }
               }
               loop_offset += tc_size*tc_size; //Move to the next tiled matmul fragment
             }
           }
         }
-
-
 
       }break;
       default:
