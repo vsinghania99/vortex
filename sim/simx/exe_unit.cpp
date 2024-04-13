@@ -234,7 +234,6 @@ void LsuUnit::tick() {
         }
 
         auto tag = pending_rd_reqs_.allocate({trace, addr_count});
-       
         for (uint32_t t = 0; t < num_lanes_; ++t) {
             if (!trace->tmask.test(t0 + t))
                 continue;

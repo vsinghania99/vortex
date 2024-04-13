@@ -90,10 +90,6 @@
 `define NUM_THREADS 4
 `endif
 
-`ifndef MATRIX_SIZE
-`define MATRIX_SIZE 4
-`endif
-
 `ifndef NUM_BARRIERS
 `define NUM_BARRIERS 4
 `endif
@@ -104,7 +100,7 @@
 `define NUM_SOCKETS `UP(`NUM_CORES / `SOCKET_SIZE)
 
 `ifndef TC_SIZE
-`define TC_SIZE 2
+`define TC_SIZE 4
 `endif
 
 `ifdef L2_ENABLE

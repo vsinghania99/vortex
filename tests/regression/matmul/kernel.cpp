@@ -10,17 +10,22 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	int32_t* src1_ptr = (int32_t*)arg->src1_addr;
 	int32_t* dst_ptr  = (int32_t*)arg->dst_addr;
 		
+	
+
 	unsigned a_addr = reinterpret_cast<unsigned>(src0_ptr);
 	unsigned b_addr = reinterpret_cast<unsigned>(src1_ptr);
 	unsigned c_addr = reinterpret_cast<unsigned>(dst_ptr);
 
+	vx_printf("src0 base in kernel = %x\n", a_addr);
+
 	//TODO - check if okay to send base address like this?
 	//TODO - make flexible for data types
 	
-	unsigned num_threads = arg->num_tasks / ((arg->matrix_size*arg->matrix_size)/(TC_SIZE*TC_SIZE));
+	uint32_t tc_size = arg->tc_size;
+	unsigned num_threads = arg->num_tasks / ((arg->matrix_size*arg->matrix_size)/(tc_size*tc_size));
 	int num_warps = arg->num_warps;
 	uint32_t matrix_size = arg->matrix_size;
-	uint32_t tc_size = TC_SIZE;
+	
 	int n_tiles = matrix_size/tc_size;
 	int num_output_tiles = (matrix_size*matrix_size)/(tc_size*tc_size);
 	
@@ -61,10 +66,6 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	int offset_c = ((task_id_first_warp/num_tasks_per_thread)*addr_shift_c) + ((task_id_first_warp%num_tasks_per_thread)*num_data_per_op_tile_c);
 	offset_c = offset_c + (num_data_per_warp_c*(task_id/num_tasks_per_warp));
 
-	//unsigned task_id_max = arg->num_tasks;	
-	//unsigned offset = (TC_SIZE*TC_SIZE*n_tiles)*((task_id)%(arg->num_tasks/(num_threads))) + (TC_SIZE*TC_SIZE/num_threads)*((task_id)/(arg->num_tasks/(num_threads)));
-	//unsigned offset_c = (TC_SIZE*TC_SIZE)*((task_id)%(arg->num_tasks/num_threads)) + (TC_SIZE*TC_SIZE/num_threads)*((task_id)/(arg->num_tasks/(num_threads)));
-
 	//TODO : change this during thread optimization
 	//int task_id_max = MIN(arg->num_tasks, num_data_per_op_tile*num_output_tiles);
 	int task_id_max = MIN(num_tasks_per_thread, num_output_tiles);
@@ -88,7 +89,7 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 		vx_fence();
 
 
-		mm();   //Assuming padding to ensure matrix size is a multiple of TC_SIZE
+		mm();   //Assuming padding to ensure matrix size is a multiple of tc_size
 		vx_fence();
 		if (((task_id%num_tasks_per_warp)/num_tasks_per_thread) < xyz_c)
 			ms(c_addr_base);
