@@ -87,7 +87,7 @@ private:
 class vx_device {    
 public:
     vx_device() 
-        : arch_(NUM_THREADS, NUM_WARPS, NUM_CORES)
+        : arch_(NUM_THREADS, NUM_WARPS, NUM_CORES, TC_NUM)
         , ram_(RAM_PAGE_SIZE)
         , processor_(arch_)
         , global_mem_(
@@ -286,6 +286,9 @@ extern int vx_dev_caps(vx_device_h hdevice, uint32_t caps_id, uint64_t *value) {
         break;
     case VX_CAPS_NUM_WARPS:
         *value = NUM_WARPS;
+        break;
+    case VX_CAPS_TC_NUM:
+        *value = TC_NUM;
         break;
     case VX_CAPS_NUM_CORES:
         *value = NUM_CORES * NUM_CLUSTERS;

@@ -90,10 +90,6 @@
 `define NUM_THREADS 4
 `endif
 
-`ifndef MATRIX_SIZE
-`define MATRIX_SIZE 4
-`endif
-
 `ifndef NUM_BARRIERS
 `define NUM_BARRIERS 4
 `endif
@@ -105,6 +101,10 @@
 
 `ifndef TC_SIZE
 `define TC_SIZE 2
+`endif
+
+`ifndef TC_NUM
+`define TC_NUM 1
 `endif
 
 `ifdef L2_ENABLE

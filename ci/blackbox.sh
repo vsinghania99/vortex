@@ -76,6 +76,10 @@ case $i in
         THREADS=${i#*=}
         shift
         ;;
+    --tc_num=*)
+        TC_NUM=${i#*=}
+        shift
+        ;;
     --l2cache)
         L2=-DL2_ENABLE
         shift
@@ -159,7 +163,7 @@ else
     exit -1
 fi
 
-CONFIGS="-DNUM_CLUSTERS=$CLUSTERS -DNUM_CORES=$CORES -DNUM_WARPS=$WARPS -DNUM_THREADS=$THREADS $L2 $L3 $PERF_FLAG $CONFIGS"
+CONFIGS="-DNUM_CLUSTERS=$CLUSTERS -DNUM_CORES=$CORES -DNUM_WARPS=$WARPS -DNUM_THREADS=$THREADS -DTC_NUM=$TC_NUM $L2 $L3 $PERF_FLAG $CONFIGS"
 
 echo "CONFIGS=$CONFIGS"
 

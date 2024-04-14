@@ -26,8 +26,6 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	int n_tiles = matrix_size/tc_size;
 	int num_output_tiles = (matrix_size*matrix_size)/(tc_size*tc_size);
 
-	int TC_per_warp = arg->TC_per_warp;
-
 	unsigned offset = ((TC_SIZE*TC_SIZE*n_tiles))*((task_id)%(arg->num_tasks/(arg->num_threads/TC_per_warp))) + ((TC_SIZE*TC_SIZE*n_tiles)/(arg->num_threads/TC_per_warp))*((task_id)/(arg->num_tasks/(arg->num_threads/TC_per_warp)));
 	unsigned offset_c = (TC_SIZE*TC_SIZE)*((task_id)%(arg->num_tasks));
 

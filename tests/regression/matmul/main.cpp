@@ -152,18 +152,17 @@ int main(int argc, char *argv[]) {
   std::cout << "open device connection" << std::endl;  
   RT_CHECK(vx_dev_open(&device));
 
-  uint64_t num_cores, num_warps, num_threads;
+  uint64_t num_cores, num_warps, num_threads, TC_per_warp;
   RT_CHECK(vx_dev_caps(device, VX_CAPS_NUM_CORES, &num_cores));
   RT_CHECK(vx_dev_caps(device, VX_CAPS_NUM_WARPS, &num_warps));
   RT_CHECK(vx_dev_caps(device, VX_CAPS_NUM_THREADS, &num_threads));
+  RT_CHECK(vx_dev_caps(device, VX_CAPS_TC_NUM, &TC_per_warp));
  //Number of tiles * threads
   //uint32_t num_tasks  = num_cores * num_warps * num_threads;
   //TODO - fix this
   std::cout << "DEBUG: Matrix Size: " << matrix_size << std::endl;
   //uint32_t num_tasks  = ((matrix_size*matrix_size)/(TC_SIZE*TC_SIZE))*(matrix_size/(TC_SIZE))*num_threads;
 
-  //FIX THIS
-  int TC_per_warp = 2;
   uint32_t num_tasks  = (matrix_size*matrix_size)/(TC_SIZE*TC_SIZE)*(num_threads/TC_per_warp); std::cout << "DEBUG: Matrix Size: " << matrix_size << std::endl;
   std::cout << "DEBUG: TC Size: " << TC_SIZE << std::endl;
   std::cout << "DEBUG: Num Threads: " << num_threads << std::endl;
