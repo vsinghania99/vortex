@@ -158,9 +158,9 @@ int main(int argc, char *argv[]) {
   std::cout << "D :: TC_per_warp = " << TC_per_warp << std::endl;
   
   //TODO - can be changed
-  //Number of output tiles * number of threads
-  uint32_t num_tasks  = ((matrix_size*matrix_size)/(tc_size*tc_size))*(num_threads/TC_per_warp);
-  
+  uint32_t TC_per_core = 2;
+  uint32_t num_tasks  = (matrix_size*matrix_size)/(TC_SIZE*TC_SIZE)*(num_warps/TC_per_core);
+
   //size of each operand
   uint32_t buf_size   =  ((matrix_size*matrix_size)/(tc_size*tc_size))*(matrix_size/(tc_size))*(tc_size*tc_size)*4;
 

@@ -86,6 +86,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
   auto vmask  = instr.getVmask();
 
   auto num_threads = arch_.num_threads();
+  auto num_warps = arch_.num_warps();
 
   uint32_t thread_start = 0;
   for (; thread_start < num_threads; ++thread_start) {
@@ -2307,10 +2308,8 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     uint32_t TC_per_warp = core_->arch().tc_num();
 
     //load memory addresses
-    //uint64_t csr_addr[tc_size*tc_size*3] = {VX_MAT_MUL_0,VX_MAT_MUL_1, VX_MAT_MUL_2, VX_MAT_MUL_3, VX_MAT_MUL_4, VX_MAT_MUL_5, VX_MAT_MUL_6, VX_MAT_MUL_7, VX_MAT_MUL_8, VX_MAT_MUL_9, VX_MAT_MUL_10, VX_MAT_MUL_11};
-    
-    //TODO - make it data-type flexible
-    //Number of loads - dependant on the thread config
+
+    uint64_t csr_addr[tc_size*tc_size*3] = {VX_MAT_MUL_0,VX_MAT_MUL_1, VX_MAT_MUL_2, VX_MAT_MUL_3, VX_MAT_MUL_4, VX_MAT_MUL_5, VX_MAT_MUL_6, VX_MAT_MUL_7, VX_MAT_MUL_8, VX_MAT_MUL_9, VX_MAT_MUL_10, VX_MAT_MUL_11};
   
     uint32_t n_tiles = core_->get_csr(VX_MAT_MUL_SIZE, 0, warp_id_);  //CSR instruction before MLOAD will ensure that this csr has value
     int num_data_per_thread;
@@ -2335,7 +2334,6 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     data_bytes_load = mem_bytes*num_data_per_thread;
 
     //STORE
-    
     DP(3, "DEBUG :: num_threads = " << num_threads);
     DP(3, "DEBUG :: tc_size*tc_size = " << tc_size*tc_size);
     //DP(3, "imm = " << immsrc);
@@ -2353,129 +2351,151 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     data_bytes_store = mem_bytes*num_data_per_thread_st;
     
     DP(3, "Num Tiles=" << n_tiles << std::endl);
-    
+
+  
+    uint32_t data_bytes_load = mem_bytes*num_data_per_thread*n_tiles;
+    uint32_t data_bytes_store = (mem_bytes*num_data_per_thread);
+
+    uint32_t TC_per_core = 2;
+    uint32_t num_warp_per_tc = MAX(1,num_warps/TC_per_core); 
+
+    DP(3, "Num Tiles=" << n_tiles << std::endl);
+
     switch (func3) {
       case 0: 
       { //Matrix Load  
 
-        DP (4, "TCU LOAD");
-        trace->exe_type = ExeType::LSU;
-        trace->lsu_type = LsuType::TCU_LOAD;
-        
-        trace->used_iregs.set(rsrc0);
-        auto trace_data = std::make_shared<LsuTraceData>(num_threads);
-        trace->data = trace_data;
-        
-        for (uint32_t t = thread_start; t < num_threads_actv; ++t) 
+        if( (warp_id_ % num_warp_per_tc) == 0) 
         {
-          if (!tmask_.test(t))
-            continue;
-          DP(3, "Thread ID" << t); 
-
-          uint32_t base_addr = rsdata[t][0].i ;
-          trace_data->mem_addrs.at(t) = {base_addr, data_bytes_load};
+          DP (4, "TCU LOAD");
+          trace->exe_type = ExeType::LSU;
+          trace->lsu_type = LsuType::TCU_LOAD;
           
-          //Load A or B (depends on immsrc)
-          int loop_offset = 0;
-          DP(3, "n_tiles = " << n_tiles << "; num_data_per_thread = " << num_data_per_thread <<std::endl);
-          //for(int tiles = 0 ; tiles < n_tiles ; tiles++)
-          //{
-            for (int n=0; n<num_data_per_thread; n++)
-            {
-              Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
-              core_->dcache_read(temp_ref, (base_addr+(n*mem_bytes)+(loop_offset*mem_bytes)), mem_bytes);
+          trace->used_iregs.set(rsrc0);
+          auto trace_data = std::make_shared<LsuTraceData>(num_threads);
+          trace->data = trace_data;
+          
+          uint32_t input_tiles_offset = n_tiles*tc_size*tc_size*2;
+          uint32_t output_offset = tc_size*tc_size;
+          uint32_t warp_offset = warp_id_ * (input_tiles_offset + output_offset);
+          
+          for (uint32_t t = thread_start; t < num_threads_actv; ++t) 
+          {
+            if (!tmask_.test(t))
+              continue;
 
-              scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n] = *temp_ref;
-              DP(3, "Scratchpad Index: " << loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n << ", Value: " << scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n]);
+            uint32_t base_addr = rsdata[t][0].i ;
+            trace_data->mem_addrs.at(t) = {base_addr, data_bytes_load};
+            
+           
+            //Load A or B (depends on immsrc)
+            int loop_offset = 0;
+            for(int tiles = 0 ; tiles < n_tiles ; tiles++) 
+            {
+              for (int n=0; n<num_data_per_thread; n++)
+              {
+                Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
+                core_->dcache_read(temp_ref, (base_addr+(n*mem_bytes)+(loop_offset*mem_bytes)), mem_bytes);
+
+                core_->scratchpad[warp_offset + loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n] = *temp_ref;
+                //DP(3, "Scratchpad Index: " << loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n << ", Value: " << scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n]);
+              }
+              loop_offset += tc_size*tc_size;
             }
-            //loop_offset += tc_size*tc_size;
-          //}
+          }
+          rd_write = true;
         }
-        rd_write = true;  
+
       } break;
       case 1: 
       { 
-        DP(4, "TCU STORE");
-        trace->exe_type = ExeType::LSU;
-        trace->lsu_type = LsuType::TCU_STORE;
-
-        auto trace_data = std::make_shared<LsuTraceData>(num_threads);
-        trace->data = trace_data;
-        uint32_t accu_offset = (n_tiles)*(n_tiles)*(n_tiles)*tc_size*tc_size*2;
-
-        for (uint32_t t = thread_start; t < num_threads_actv_st; ++t) 
+        if( (warp_id_ %  num_warp_per_tc) == 0) 
         {
-          if (!tmask_.test(t))
-            continue;
+          DP(4, "TCU STORE");
+          trace->exe_type = ExeType::LSU;
+          trace->lsu_type = LsuType::TCU_STORE;
 
-          DP(3, "Thread ID" << t); 
-          uint32_t base_addr = rsdata[t][0].i ;
+          auto trace_data = std::make_shared<LsuTraceData>(num_threads);
+          trace->data = trace_data;
 
-          trace_data->mem_addrs.at(t) = {base_addr, data_bytes_store};
+          uint32_t input_tiles_offset = n_tiles*tc_size*tc_size*2;
+          uint32_t output_offset = tc_size*tc_size;
+          uint32_t warp_offset = warp_id_ * (input_tiles_offset + output_offset);
 
-          //Store C
-          for (int n=0; n<num_data_per_thread_st; n++)
+          for (uint32_t t = thread_start; t < num_threads_actv; ++t) 
           {
-            uint64_t mem_addr = (base_addr+(n*mem_bytes));
-            uint32_t csr_index = (2*num_data_per_thread_st) + n;
-            uint32_t scratchpad_index = (tc_size*tc_size*2) + (t*num_data_per_thread) + n;
-            
-            //scratchpad -> csr (TODO :: can intermediate step of moving to CSR be skipped?)
-            //core_->set_csr(csr_addr[(2*num_data_per_thread) + n], scratchpad[(n_tiles*tc_size*tc_size*2) + (t*num_data_per_thread) + n], t, warp_id_);
-            Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
-            *temp_ref = scratchpad[(n_tiles*tc_size*tc_size*2) + (t*num_data_per_thread_st) + n];
+            if (!tmask_.test(t))
+              continue;
+            uint32_t base_addr = rsdata[t][0].i ;
 
-            core_->dcache_write(temp_ref, base_addr+(n*mem_bytes), mem_bytes);  
+            trace_data->mem_addrs.at(t) = {base_addr, data_bytes_store};
+
+            //Store C
+            for (int n=0; n<num_data_per_thread; n++)
+            {
+              uint64_t mem_addr = (base_addr+(n*mem_bytes));
+              uint32_t csr_index = (2*num_data_per_thread) + n;
+              uint32_t scratchpad_index = (tc_size*tc_size*2) + (t*num_data_per_thread) + n;
+              
+              //scratchpad -> csr (TODO :: can intermediate step of moving to CSR be skipped?)
+              core_->set_csr(csr_addr[(2*num_data_per_thread) + n], core_->scratchpad[ warp_offset + (n_tiles*tc_size*tc_size*2) + (t*num_data_per_thread) + n], t, warp_id_);
+              Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
+              *temp_ref = core_->get_csr(csr_addr[(num_data_per_thread*2) + n], t, warp_id_);
+              core_->dcache_write(temp_ref, base_addr+(n*mem_bytes), mem_bytes);  
+            }
           }
-        }
-        //Clear the scratchpad
-        for(int i =0 ; i < scratchpad.size(); i++)
-        {
-          scratchpad[i] = 0;
+          //Clear the scratchpad
+          for(int i =0 ; i < core_->scratchpad.size(); i++)
+          {
+            core_->scratchpad[i] = 0;
+          }
         }
       }
       break;
       case 2: 
       { //Matrix Multiply
-        DP(4, "TCU MULTIPLY MAT");
-        trace->exe_type = ExeType::TCU;
-        trace->tcu_type = TCUType::TCU_MUL;
-        uint32_t accu_offset = (n_tiles)*(n_tiles)*(n_tiles)*tc_size*tc_size*2;
-        uint32_t threads_per_tc = MAX (1, num_threads/TC_per_warp);
-        for (uint32_t t = thread_start; t < num_threads_actv; ++t) 
-        {
-          if (!tmask_.test(t))
-            continue;
-         
-          DP(3, "Thread ID" << t); 
-          //TC operation [only 1 thread in 1 warp needs to do this]
-          if (t%threads_per_tc == 0)
-          {
-            //TODO - change to systolic array implementation
-            uint32_t thread_offset = t*(tc_size*tc_size);
-            int loop_offset = 0;
-            int offset_b = n_tiles*n_tiles*n_tiles*tc_size*tc_size;
-            // Loop over all tiles - output stationary
-            //for(int tiles = 0 ; tiles < n_tiles ; tiles++)  //What's the HW implication of this?? A counter implementation?
-            //{ 
-              for (int i = 0; i < tc_size; i++) { //ROW-1
-                for (int j = 0; j < tc_size; j++) { //COL-2
-                  int sum = 0;
-                  for (int k = 0; k < tc_size; k++)
-                  { //COL-1
-                    sum = sum + scratchpad[loop_offset + thread_offset*n_tiles + i * tc_size + k] *scratchpad[loop_offset + thread_offset*n_tiles + offset_b + (k * tc_size + j)];
-                  }
-                  scratchpad[accu_offset + thread_offset +(i * tc_size + j)] += sum; //[i * col2 + j] = sum
-                  DP(3, "Scratchpad Index: " << accu_offset + (i * tc_size + j) << " , Value=" << scratchpad[accu_offset + (i * tc_size + j)]);
 
+        if( (warp_id_ % num_warp_per_tc) == 0) 
+        {
+          DP(4, "TCU MULTIPLY MAT");
+          trace->exe_type = ExeType::TCU;
+          trace->tcu_type = TCUType::TCU_MUL;
+
+          uint32_t input_tiles_offset = n_tiles*tc_size*tc_size*2;
+          uint32_t output_offset = tc_size*tc_size;
+          uint32_t warp_offset = warp_id_ * (input_tiles_offset + output_offset);
+
+          for (uint32_t t = thread_start; t < num_threads; ++t) 
+          {
+            if (!tmask_.test(t))
+              continue;
+          
+            //TC operation [only 1 thread in 1 warp needs to do this]
+            if (t == 0)
+            {
+              //TODO - change to systolic array implementation
+              int loop_offset = 0;
+              // Loop over all tiles - output stationary
+              for(int tiles = 0 ; tiles < n_tiles ; tiles++)  //What's the HW implication of this?? A counter implementation?
+              { 
+                for (int i = 0; i < tc_size; i++) { //ROW-1
+                  for (int j = 0; j < tc_size; j++) { //COL-2
+                    int sum = 0;
+                    for (int k = 0; k < tc_size; k++){ //COL-1
+                      //DP(3, "Multiplying: A index = " << loop_offset + i * tc_size + k << "; B index = " << loop_offset + n_tiles*tc_size*tc_size + (k * tc_size + j));
+                      sum = sum + core_->scratchpad[warp_offset + loop_offset + i * tc_size + k] * core_->scratchpad[warp_offset + loop_offset + n_tiles*tc_size*tc_size + (k * tc_size + j)];
+                    }
+                    core_->scratchpad[warp_offset + (n_tiles*tc_size*tc_size*2) + (i * tc_size + j)] += sum; //[i * col2 + j] = sum
+                    //DP(3, "Scratchpad Index: " << (n_tiles*tc_size*tc_size*2) + (i * tc_size + j) << " , Value=" << scratchpad[(n_tiles*tc_size*tc_size*2) + (i * tc_size + j)]);
+                  }
                 }
+                loop_offset += tc_size*tc_size; //Move to the next tiled matmul fragment
               }
-              //loop_offset += tc_size*tc_size; //Move to the next tiled matmul fragment
-            //}
+            }
           }
         }
-
-      }break;
+      }
+      break;
       default:
         std::abort();
     }

@@ -102,9 +102,7 @@ private:
   std::vector<std::vector<Word>>     ireg_file_;
   std::vector<std::vector<uint64_t>> freg_file_;
   std::vector<std::vector<Byte>>     vreg_file_;
-  std::stack<DomStackEntry>          ipdom_stack_;
-  std::vector<Word>                  scratchpad;
-  
+  std::stack<DomStackEntry>          ipdom_stack_;  
   struct vtype vtype_;
   uint32_t vl_;
 };

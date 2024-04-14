@@ -183,6 +183,7 @@ private:
   std::vector<ExeUnit::Ptr> exe_units_;
   SharedMem::Ptr shared_mem_;
   std::vector<SMemDemux::Ptr> smem_demuxs_;
+  std::vector<Word>  scratchpad;
 
   PipelineLatch fetch_latch_;
   PipelineLatch decode_latch_;

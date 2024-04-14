@@ -52,6 +52,7 @@ Core::Core(const SimContext& ctx,
     , dispatchers_((uint32_t)ExeType::ExeTypeCount)
     , exe_units_((uint32_t)ExeType::ExeTypeCount)
     , smem_demuxs_(NUM_LSU_LANES)
+    , scratchpad(std::vector<Word>(this->arch().tc_size() * this->arch().tc_size() * 32768)) //Fix this
     , fetch_latch_("fetch")
     , decode_latch_("decode")
     , pending_icache_(arch_.num_warps())
@@ -75,6 +76,11 @@ Core::Core(const SimContext& ctx,
 
   for (uint32_t i = 0; i < ISSUE_WIDTH; ++i) {
     operands_.at(i) = SimPlatform::instance().create_object<Operand>();
+  }
+
+  for (auto& reg : scratchpad) 
+  {
+    reg = 0;
   }
 
   // initialize shared memory
@@ -214,6 +220,11 @@ void Core::schedule() {
   // advance to fetch stage
   fetch_latch_.push(trace);
   ++issued_instrs_;
+
+  DP(5, "Scratchpad state:");
+  for (uint32_t i = 0; i < arch_.tc_size() * arch_.tc_size(); ++i) {
+    DPN(5, scratchpad[i] << " | " << scratchpad[i + (arch_.tc_size()*arch_.tc_size())] << " | " << scratchpad[i + (2*arch_.tc_size()*arch_.tc_size())] << std::endl);
+  }  
 }
 
 void Core::fetch() {
