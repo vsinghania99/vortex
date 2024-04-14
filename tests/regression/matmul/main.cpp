@@ -97,10 +97,8 @@ int run_test(const kernel_arg_t& kernel_arg,
   {
     int errors = 0;
     auto buf_ptr = (int32_t*)staging_buf.data();
-
     uint64_t tc_size = kernel_arg.tc_size;
     std::cout << "tc_size = " << tc_size << std::endl;
-
     int Result[matrix_size*matrix_size];
     int n_tiles = (matrix_size/tc_size);
     int tc_size_f = tc_size*tc_size;
@@ -149,16 +147,16 @@ int main(int argc, char *argv[]) {
   std::cout << "open device connection" << std::endl;  
   RT_CHECK(vx_dev_open(&device));
 
-  uint64_t num_cores, num_warps, num_threads, tc_size;
+  uint64_t num_cores, num_warps, num_threads, tc_size, TC_per_warp;
   RT_CHECK(vx_dev_caps(device, VX_CAPS_NUM_CORES, &num_cores));
   RT_CHECK(vx_dev_caps(device, VX_CAPS_NUM_WARPS, &num_warps));
   RT_CHECK(vx_dev_caps(device, VX_CAPS_NUM_THREADS, &num_threads));
   RT_CHECK(vx_dev_caps(device, VX_CAPS_TC_SIZE, &tc_size));
+  RT_CHECK(vx_dev_caps(device, VX_CAPS_TC_NUM, &TC_per_warp));
   
-
   //TODO - can be changed
   //Number of output tiles * number of threads
-  uint32_t num_tasks  = (matrix_size*matrix_size)/(tc_size*tc_size)*num_threads;
+  uint32_t num_tasks  = ((matrix_size*matrix_size)/(tc_size*tc_size))*(num_threads/TC_per_warp);
   
   //size of each operand
   uint32_t buf_size   =  ((matrix_size*matrix_size)/(tc_size*tc_size))*(matrix_size/(tc_size))*(tc_size*tc_size)*4;
@@ -182,12 +180,13 @@ int main(int argc, char *argv[]) {
   std::cout << "num_tasks = " << num_tasks << std::endl;
   kernel_arg.num_tasks = num_tasks;
   kernel_arg.num_warps = num_warps;
+  kernel_arg.num_threads = num_threads;
+  kernel_arg.TC_per_warp = TC_per_warp;
   //1
   kernel_arg.matrix_size = matrix_size;
   kernel_arg.tc_size = tc_size;
 
   uint32_t offset = (matrix_size*matrix_size)/(tc_size*tc_size) * (matrix_size/tc_size) * (tc_size*tc_size) * 4;
-  
   //TODO - does this need to be fixed?
   uint32_t base_addr = 0x40;
   kernel_arg.src0_addr = base_addr;  
@@ -250,7 +249,7 @@ int main(int argc, char *argv[]) {
         {
           for(int t=0; t < tc_size*tc_size; t++)
           { 
-          A_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j + t]   = src_A[k*tc_size*matrix_size+ tc_size*j +(t/tc_size)*matrix_size + t%tc_size];
+            A_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j + t]   = src_A[k*tc_size*matrix_size+ tc_size*j +(t/tc_size)*matrix_size + t%tc_size];
           }
         }
     }

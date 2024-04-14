@@ -2304,12 +2304,14 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
   { //TODO - make it data-type flexible
     uint32_t mem_bytes = 4;
     uint16_t tc_size = core_->arch().tc_size();
+    uint32_t TC_per_warp = core_->arch().tc_num();
+
     //load memory addresses
     //uint64_t csr_addr[tc_size*tc_size*3] = {VX_MAT_MUL_0,VX_MAT_MUL_1, VX_MAT_MUL_2, VX_MAT_MUL_3, VX_MAT_MUL_4, VX_MAT_MUL_5, VX_MAT_MUL_6, VX_MAT_MUL_7, VX_MAT_MUL_8, VX_MAT_MUL_9, VX_MAT_MUL_10, VX_MAT_MUL_11};
     
     //TODO - make it data-type flexible
     //Number of loads - dependant on the thread config
-
+  
     uint32_t n_tiles = core_->get_csr(VX_MAT_MUL_SIZE, 0, warp_id_);  //CSR instruction before MLOAD will ensure that this csr has value
     int num_data_per_thread;
     int num_data_per_thread_st;
@@ -2317,17 +2319,18 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     int num_threads_actv_st;
     uint32_t data_bytes_load;
     uint32_t data_bytes_store;
+    uint32_t num_threads_per_tc = MAX (1, num_threads/TC_per_warp)
 
     //LOAD
-    if(num_threads > tc_size*tc_size*n_tiles)
+    if(num_threads_per_tc > tc_size*tc_size*n_tiles)
     { 
       num_threads_actv = tc_size*tc_size*n_tiles;
       num_data_per_thread = 1;
     }
     else
     {
-      num_threads_actv = num_threads;
-      num_data_per_thread = (tc_size*tc_size*n_tiles)/num_threads;
+      num_threads_actv = num_threads_per_tc;
+      num_data_per_thread = (tc_size*tc_size*n_tiles)/num_threads_per_tc;
     }
     data_bytes_load = mem_bytes*num_data_per_thread;
 
@@ -2367,15 +2370,13 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
         {
           if (!tmask_.test(t))
             continue;
+          DP(3, "Thread ID" << t); 
 
           uint32_t base_addr = rsdata[t][0].i ;
           trace_data->mem_addrs.at(t) = {base_addr, data_bytes_load};
           
           //Load A or B (depends on immsrc)
           int loop_offset = 0;
-          //TODO :: Loop offset needs to be fixed for the functional model
-          //for(int tiles = 0 ; tiles < n_tiles ; tiles++)  //What's the HW implication of this?? A counter implementation?
-          //{
             for (int n=0; n<num_data_per_thread; n++)
             {
               Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
@@ -2384,8 +2385,6 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
               scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n] = *temp_ref;
               //DP(3, "Scratchpad Index: " << loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n << ", Value: " << scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n]);
             }
-            //loop_offset += tc_size*tc_size;
-          //}
         }
         rd_write = true;  
       } break;
@@ -2397,11 +2396,14 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
 
         auto trace_data = std::make_shared<LsuTraceData>(num_threads);
         trace->data = trace_data;
+        uint32_t accu_offset = (n_tiles)*(n_tiles)*(n_tiles)*tc_size*tc_size*2;
 
         for (uint32_t t = thread_start; t < num_threads_actv_st; ++t) 
         {
           if (!tmask_.test(t))
             continue;
+
+          DP(3, "Thread ID" << t); 
           uint32_t base_addr = rsdata[t][0].i ;
 
           trace_data->mem_addrs.at(t) = {base_addr, data_bytes_store};
@@ -2433,37 +2435,41 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
         DP(4, "TCU MULTIPLY MAT");
         trace->exe_type = ExeType::TCU;
         trace->tcu_type = TCUType::TCU_MUL;
-
-        for (uint32_t t = thread_start; t < num_threads; ++t) 
+        uint32_t accu_offset = (n_tiles)*(n_tiles)*(n_tiles)*tc_size*tc_size*2;
+        uint32_t threads_per_tc = MAX (1, num_threads/TC_per_warp);
+        for (uint32_t t = thread_start; t < num_threads_actv; ++t) 
         {
           if (!tmask_.test(t))
             continue;
          
+          DP(3, "Thread ID" << t); 
           //TC operation [only 1 thread in 1 warp needs to do this]
-          if (t == 0)
+          if (t%threads_per_tc == 0)
           {
             //TODO - change to systolic array implementation
+            uint32_t thread_offset = t*(TC_SIZE*TC_SIZE);
             int loop_offset = 0;
+            int offset_b = n_tiles*n_tiles*n_tiles*tc_size*tc_size;
             // Loop over all tiles - output stationary
             for(int tiles = 0 ; tiles < n_tiles ; tiles++)  //What's the HW implication of this?? A counter implementation?
             { 
               for (int i = 0; i < tc_size; i++) { //ROW-1
                 for (int j = 0; j < tc_size; j++) { //COL-2
                   int sum = 0;
-                  for (int k = 0; k < tc_size; k++){ //COL-1
-                    //DP(3, "Multiplying: A index = " << loop_offset + i * tc_size + k << "; B index = " << loop_offset + n_tiles*tc_size*tc_size + (k * tc_size + j));
-                    sum = sum + scratchpad[loop_offset + i * tc_size + k] *scratchpad[loop_offset + n_tiles*tc_size*tc_size + (k * tc_size + j)];
+                  for (int k = 0; k < tc_size; k++)
+                  { //COL-1
+
+                    sum = sum + scratchpad[loop_offset + thread_offset*n_tiles + i * tc_size + k] *scratchpad[loop_offset + thread_offset*n_tiles + offset_b + (k * tc_size + j)];
                   }
-                  scratchpad[(n_tiles*tc_size*tc_size*2) + (i * tc_size + j)] += sum; //[i * col2 + j] = sum
-                  //DP(3, "Scratchpad Index: " << (n_tiles*tc_size*tc_size*2) + (i * tc_size + j) << " , Value=" << scratchpad[(n_tiles*tc_size*tc_size*2) + (i * tc_size + j)]);
+                  scratchpad[accu_offset + thread_offset +(i * tc_size + j)] += sum; //[i * col2 + j] = sum
+                  DP(3, "Scratchpad Index: " << accu_offset + (i * tc_size + j) << " , Value=" << scratchpad[offset_b + (i * tc_size + j)]);
+
                 }
               }
               loop_offset += tc_size*tc_size; //Move to the next tiled matmul fragment
             }
           }
         }
-
-
 
       }break;
       default:

@@ -7,6 +7,8 @@
 typedef struct {
   uint32_t num_tasks;
   uint32_t num_warps;
+  uint32_t num_threads;
+  uint32_t TC_per_warp;
   uint32_t matrix_size;
   uint64_t tc_size;
   uint64_t src0_addr;

@@ -103,6 +103,10 @@
 `define TC_SIZE 4
 `endif
 
+`ifndef TC_NUM
+`define TC_NUM 1
+`endif
+
 `ifdef L2_ENABLE
     `define L2_ENABLED   1
 `else
