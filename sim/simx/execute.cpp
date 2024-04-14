@@ -2321,15 +2321,17 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     uint32_t data_bytes_store;
     uint32_t num_threads_per_tc = MAX (1, num_threads/TC_per_warp);
 
+    //int num_warps = MIN()
+    //int active_tcs =  MIN (TC_per_warp, num_output_tiles/num_warps)
     //LOAD
-    if(num_threads_per_tc > tc_size*tc_size*n_tiles)
+    if(num_threads > tc_size*tc_size*n_tiles*TC_per_warp)
     { 
-      num_threads_actv = tc_size*tc_size*n_tiles;
+      num_threads_actv = tc_size*tc_size*n_tiles*TC_per_warp;
       num_data_per_thread = 1;
     }
     else
     {
-      num_threads_actv = num_threads_per_tc;
+      num_threads_actv = num_threads;
       num_data_per_thread = (tc_size*tc_size*n_tiles)/num_threads_per_tc;
     }
     data_bytes_load = mem_bytes*num_data_per_thread;
@@ -2340,15 +2342,15 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     DP(3, "DEBUG :: tc_size*tc_size = " << tc_size*tc_size);
     //DP(3, "imm = " << immsrc);
     
-    if(num_threads > tc_size*tc_size)
+    if(num_threads > tc_size*tc_size*TC_per_warp)
     { 
-      num_threads_actv_st = tc_size*tc_size;
+      num_threads_actv_st = tc_size*tc_size*TC_per_warp;
       num_data_per_thread_st = 1;
     }
     else
     {
       num_threads_actv_st = num_threads;
-      num_data_per_thread_st = (tc_size*tc_size)/num_threads;
+      num_data_per_thread_st = (tc_size*tc_size)/num_threads_per_tc;
     }
     data_bytes_store = mem_bytes*num_data_per_thread_st;
     
@@ -2378,8 +2380,6 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
           //Load A or B (depends on immsrc)
           int loop_offset = 0;
           DP(3, "n_tiles = " << n_tiles << "; num_data_per_thread = " << num_data_per_thread <<std::endl);
-          //for(int tiles = 0 ; tiles < n_tiles ; tiles++)
-          //{
             for (int n=0; n<num_data_per_thread; n++)
             {
               Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));

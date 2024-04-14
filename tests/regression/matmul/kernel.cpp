@@ -15,7 +15,7 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 
 	uint32_t tc_size = arg->tc_size;
 	int TC_per_warp = arg->TC_per_warp;
-	unsigned num_threads = arg->num_tasks / ((arg->matrix_size*arg->matrix_size)/(tc_size*tc_size));
+	unsigned num_threads = arg->num_threads;
 	int num_warps = arg->num_warps;
 	uint32_t matrix_size = arg->matrix_size;
 	
@@ -25,9 +25,17 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	int num_tasks = arg->num_tasks;
 
 	//Assuming matrix size always > tensor core size
-	int num_warps_actual = MIN(num_output_tiles, num_warps);
+	int warps_actual;
+	if (TC_per_warp > num_output_tiles)
+		warps_actual = 1;
+	else 
+		warps_actual = num_output_tiles/TC_per_warp;
+
+	int num_warps_actual = MIN(warps_actual, num_warps);
 	int num_threads_per_tc = MAX(1, num_threads/TC_per_warp);
 
+	vx_printf ("(num_tasks/(num_threads*num_warps_actual)) = %d\n", (num_tasks/(num_threads*num_warps_actual)));
+	vx_printf ("num_warps_actual = %d\n", num_warps_actual);
 	int num_tasks_per_thread = MAX (1, (num_tasks/(num_threads*num_warps_actual)));
 	int num_tasks_per_warp = MAX (1, num_tasks/num_warps_actual);
 	int task_id_first_warp = task_id%num_tasks_per_warp;
@@ -37,8 +45,8 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	int num_data_per_warp = num_data_per_op_tile*(MAX(1, (num_output_tiles/num_warps_actual)));
 	
 	int addr_shift;
-	if (((tc_size*tc_size*n_tiles)/(num_threads_per_tc)) > 1)
-		addr_shift = (tc_size*tc_size*n_tiles)/(num_threads_per_tc);
+	if (((tc_size*tc_size*n_tiles)/(num_threads)) > 1)
+		addr_shift = (tc_size*tc_size*n_tiles)/(num_threads);
 	else
 		addr_shift = 1;
 	//Offset for 1st warp
@@ -50,7 +58,7 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	int num_data_per_warp_c = num_data_per_warp/n_tiles;
 	
 	int addr_shift_c;
-	if (((tc_size*tc_size)/(num_threads_per_tc)) > 1)
+	if (((tc_size*tc_size)/(num_threads)) > 1)
 		addr_shift_c = tc_size;
 	else
 		addr_shift_c = 1;
@@ -59,14 +67,15 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	offset_c = offset_c + (num_data_per_warp_c*(task_id/num_tasks_per_warp));
 	
 	//TODO : change this during thread optimization
-	//int task_id_max = MIN(arg->num_tasks, num_data_per_op_tile*num_output_tiles);
-	int task_id_max = MIN(num_tasks_per_thread, num_output_tiles);
 	
-	int xyz = MIN(num_threads_per_tc,tc_size*tc_size*n_tiles);
-	int xyz_c = MIN(num_threads_per_tc,tc_size*tc_size);
+	int xyz = MIN(num_threads,tc_size*tc_size*n_tiles*TC_per_warp);
+	int xyz_c = MIN(num_threads,tc_size*tc_size);
 		
 	//unsigned c_addr_base = c_addr + (((task_id*matrix_size)/arg->num_tasks)*4) ; //Fix this
-	
+	vx_printf ("num_tasks_per_warp = %d\n", num_tasks_per_warp);
+	vx_printf ("num_tasks_per_thread = %d\n", num_tasks_per_thread);
+	vx_printf ("xyz = %d\n", xyz);
+
 	if (((task_id%num_tasks_per_warp)/num_tasks_per_thread) < xyz)
 	{	
 		unsigned a_addr_base = a_addr + offset*4;

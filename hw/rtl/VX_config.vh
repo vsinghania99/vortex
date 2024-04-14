@@ -272,7 +272,7 @@
 
 // Number of TCU units
 `ifndef NUM_TCU_LANES
-`define NUM_TCU_LANES   1
+`define NUM_TCU_LANES   `TC_NUM
 `endif
 
 // Number of TCU units
