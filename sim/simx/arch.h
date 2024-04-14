@@ -35,6 +35,7 @@ private:
   uint16_t num_barriers_;
   uint16_t ipdom_size_;
   uint16_t tc_size_;
+  uint16_t tc_num_;
   
 public:
   Arch(uint16_t num_threads, uint16_t num_warps, uint16_t num_cores, uint64_t tc_size, uint64_t tc_num)   
@@ -51,7 +52,7 @@ public:
     , tc_size_ (tc_size)
     , tc_num_ (tc_num)
   {}
-
+  
   uint16_t vsize() const { 
     return vsize_; 
   }

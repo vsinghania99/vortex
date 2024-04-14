@@ -73,7 +73,6 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 		unsigned b_addr_base = b_addr + offset*4;
 		unsigned c_addr_base = c_addr + offset_c*4;
 		csr_write(VX_MAT_MUL_SIZE,n_tiles);
-		csr_write(VX_MAT_TC_PER_WARP,arg->TC_per_warp);
 		mload (0, a_addr_base);
 		mload (1, b_addr_base);
 		//In case of multiple threads - sync load

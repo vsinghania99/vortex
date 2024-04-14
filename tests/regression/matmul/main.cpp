@@ -154,6 +154,9 @@ int main(int argc, char *argv[]) {
   RT_CHECK(vx_dev_caps(device, VX_CAPS_TC_SIZE, &tc_size));
   RT_CHECK(vx_dev_caps(device, VX_CAPS_TC_NUM, &TC_per_warp));
   
+  std::cout << "D :: tc_size = " << tc_size << std::endl;
+  std::cout << "D :: TC_per_warp = " << TC_per_warp << std::endl;
+  
   //TODO - can be changed
   //Number of output tiles * number of threads
   uint32_t num_tasks  = ((matrix_size*matrix_size)/(tc_size*tc_size))*(num_threads/TC_per_warp);

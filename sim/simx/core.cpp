@@ -607,8 +607,6 @@ uint32_t Core::get_csr(uint32_t addr, uint32_t tid, uint32_t wid) {
     return tcore_csrs_[wid][tid].at(VX_MAT_MUL_11);
   case VX_MAT_MUL_SIZE:
     return mat_size;
-  case VX_MAT_TC_PER_WARP:
-    return TC_per_warp;
   default:
     if ((addr >= VX_CSR_MPM_BASE && addr < (VX_CSR_MPM_BASE + 32))
      || (addr >= VX_CSR_MPM_BASE_H && addr < (VX_CSR_MPM_BASE_H + 32))) {
@@ -815,9 +813,6 @@ void Core::set_csr(uint32_t addr, uint32_t value, uint32_t tid, uint32_t wid) {
     break;
   case VX_MAT_MUL_SIZE:
     mat_size = value;
-    break;
-  case VX_MAT_TC_PER_WARP:
-    TC_per_warp = value;
     break;
   default:
     {

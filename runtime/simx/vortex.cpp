@@ -289,6 +289,7 @@ extern int vx_dev_caps(vx_device_h hdevice, uint32_t caps_id, uint64_t *value) {
         break;
     case VX_CAPS_TC_SIZE:
         *value = TC_SIZE;
+        break;
     case VX_CAPS_TC_NUM:
         *value = TC_NUM;
         break;

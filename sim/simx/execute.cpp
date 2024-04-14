@@ -2319,7 +2319,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     int num_threads_actv_st;
     uint32_t data_bytes_load;
     uint32_t data_bytes_store;
-    uint32_t num_threads_per_tc = MAX (1, num_threads/TC_per_warp)
+    uint32_t num_threads_per_tc = MAX (1, num_threads/TC_per_warp);
 
     //LOAD
     if(num_threads_per_tc > tc_size*tc_size*n_tiles)
@@ -2337,12 +2337,12 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     //STORE
     
     DP(3, "DEBUG :: num_threads = " << num_threads);
-    DP(3, "DEBUG :: TC_SIZE*TC_SIZE = " << TC_SIZE*TC_SIZE);
+    DP(3, "DEBUG :: tc_size*tc_size = " << tc_size*tc_size);
     //DP(3, "imm = " << immsrc);
     
-    if(num_threads > TC_SIZE*TC_SIZE)
+    if(num_threads > tc_size*tc_size)
     { 
-      num_threads_actv_st = TC_SIZE*TC_SIZE;
+      num_threads_actv_st = tc_size*tc_size;
       num_data_per_thread_st = 1;
     }
     else
@@ -2377,14 +2377,19 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
           
           //Load A or B (depends on immsrc)
           int loop_offset = 0;
+          DP(3, "n_tiles = " << n_tiles << "; num_data_per_thread = " << num_data_per_thread <<std::endl);
+          //for(int tiles = 0 ; tiles < n_tiles ; tiles++)
+          //{
             for (int n=0; n<num_data_per_thread; n++)
             {
               Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
               core_->dcache_read(temp_ref, (base_addr+(n*mem_bytes)+(loop_offset*mem_bytes)), mem_bytes);
 
               scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n] = *temp_ref;
-              //DP(3, "Scratchpad Index: " << loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n << ", Value: " << scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n]);
+              DP(3, "Scratchpad Index: " << loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n << ", Value: " << scratchpad[loop_offset + (immsrc*(n_tiles)*tc_size*tc_size) + (t*num_data_per_thread) + n]);
             }
+            //loop_offset += tc_size*tc_size;
+          //}
         }
         rd_write = true;  
       } break;
@@ -2447,27 +2452,26 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
           if (t%threads_per_tc == 0)
           {
             //TODO - change to systolic array implementation
-            uint32_t thread_offset = t*(TC_SIZE*TC_SIZE);
+            uint32_t thread_offset = t*(tc_size*tc_size);
             int loop_offset = 0;
             int offset_b = n_tiles*n_tiles*n_tiles*tc_size*tc_size;
             // Loop over all tiles - output stationary
-            for(int tiles = 0 ; tiles < n_tiles ; tiles++)  //What's the HW implication of this?? A counter implementation?
-            { 
+            //for(int tiles = 0 ; tiles < n_tiles ; tiles++)  //What's the HW implication of this?? A counter implementation?
+            //{ 
               for (int i = 0; i < tc_size; i++) { //ROW-1
                 for (int j = 0; j < tc_size; j++) { //COL-2
                   int sum = 0;
                   for (int k = 0; k < tc_size; k++)
                   { //COL-1
-
                     sum = sum + scratchpad[loop_offset + thread_offset*n_tiles + i * tc_size + k] *scratchpad[loop_offset + thread_offset*n_tiles + offset_b + (k * tc_size + j)];
                   }
                   scratchpad[accu_offset + thread_offset +(i * tc_size + j)] += sum; //[i * col2 + j] = sum
-                  DP(3, "Scratchpad Index: " << accu_offset + (i * tc_size + j) << " , Value=" << scratchpad[offset_b + (i * tc_size + j)]);
+                  DP(3, "Scratchpad Index: " << accu_offset + (i * tc_size + j) << " , Value=" << scratchpad[accu_offset + (i * tc_size + j)]);
 
                 }
               }
-              loop_offset += tc_size*tc_size; //Move to the next tiled matmul fragment
-            }
+              //loop_offset += tc_size*tc_size; //Move to the next tiled matmul fragment
+            //}
           }
         }
 
