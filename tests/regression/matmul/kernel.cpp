@@ -34,8 +34,6 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	int num_warps_actual = MIN(warps_actual, num_warps);
 	int num_threads_per_tc = MAX(1, num_threads/TC_per_warp);
 
-	vx_printf ("(num_tasks/(num_threads*num_warps_actual)) = %d\n", (num_tasks/(num_threads*num_warps_actual)));
-	vx_printf ("num_warps_actual = %d\n", num_warps_actual);
 	int num_tasks_per_thread = MAX (1, (num_tasks/(num_threads*num_warps_actual)));
 	int num_tasks_per_warp = MAX (1, num_tasks/num_warps_actual);
 	int task_id_first_warp = task_id%num_tasks_per_warp;
@@ -72,10 +70,6 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	int xyz_c = MIN(num_threads,tc_size*tc_size);
 		
 	//unsigned c_addr_base = c_addr + (((task_id*matrix_size)/arg->num_tasks)*4) ; //Fix this
-	vx_printf ("num_tasks_per_warp = %d\n", num_tasks_per_warp);
-	vx_printf ("num_tasks_per_thread = %d\n", num_tasks_per_thread);
-	vx_printf ("xyz = %d\n", xyz);
-
 	if (((task_id%num_tasks_per_warp)/num_tasks_per_thread) < xyz)
 	{	
 		unsigned a_addr_base = a_addr + offset*4;

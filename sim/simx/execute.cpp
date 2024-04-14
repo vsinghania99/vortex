@@ -2458,6 +2458,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
             // Loop over all tiles - output stationary
             //for(int tiles = 0 ; tiles < n_tiles ; tiles++)  //What's the HW implication of this?? A counter implementation?
             //{ 
+              /*
               for (int i = 0; i < tc_size; i++) { //ROW-1
                 for (int j = 0; j < tc_size; j++) { //COL-2
                   int sum = 0;
@@ -2470,6 +2471,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
 
                 }
               }
+              */
               //loop_offset += tc_size*tc_size; //Move to the next tiled matmul fragment
             //}
           }
