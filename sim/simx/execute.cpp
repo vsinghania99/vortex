@@ -2303,6 +2303,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
 
   { //TODO - make it data-type flexible
     uint32_t mem_bytes = 4;
+    DP(3, "mem_bytes=" << mem_bytes << std::endl);
     uint16_t tc_size = core_->arch().tc_size();
     uint32_t TC_per_warp = core_->arch().tc_num();
 

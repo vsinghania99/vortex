@@ -5,7 +5,7 @@
 #include <vortex.h>
 #include "common.h"
 #include <VX_config.h>
-#define TYPE int
+//#define TYPE int
 
 #define RT_CHECK(_expr)                                         \
    do {                                                         \
@@ -26,28 +26,14 @@ vx_device_h device = nullptr;
 std::vector<uint8_t> staging_buf;
 kernel_arg_t kernel_arg = {};
 
-static void matmul_cpu(TYPE* out, const TYPE* A, const TYPE* B, uint32_t width, uint32_t height) {
-  for (uint32_t row = 0; row < height; ++row) {
-    for (uint32_t col = 0; col < width; ++col) {
-      TYPE sum(0);
-      for (uint32_t e = 0; e < width; ++e) {
-          sum += A[row * width + e] * B[e * width + col];
-      }
-      out[row * width + col] = sum;
-      std::cout << "C[" << row * width + col << "] = " << out[row * width + col] << std::endl;
-    }
-  }
-}
-
-
 static void show_usage() {
    std::cout << "Vortex Test." << std::endl;
    std::cout << "Usage: [-k: kernel] [-n words] [-h: help]" << std::endl;
 }
 
-static void parse_args(int argc, char **argv) {
+static void parse_args(int argc, char **argv, uint32_t &data_size) {
   int c;
-  while ((c = getopt(argc, argv, "n:k:h?")) != -1) {
+  while ((c = getopt(argc, argv, "n:k:d:h?")) != -1) {
     switch (c) {
     case 'n':
       matrix_size = atoi(optarg);
@@ -55,6 +41,9 @@ static void parse_args(int argc, char **argv) {
     case 'k':
       kernel_file = optarg;
       break;
+    case 'd':
+      data_size = atoi(optarg);
+      break;  
     case 'h':
     case '?': {
       show_usage();
@@ -136,9 +125,75 @@ int run_test(const kernel_arg_t& kernel_arg,
   return 0;
 }
 
+template<typename TYPE>
+class mainVariables
+{
+  public:
+    // Constructor
+    mainVariables(uint32_t bufSize, uint32_t dataSize, uint32_t matrixSize)
+        : buf_size(bufSize), data_size(dataSize), matrix_size(matrixSize)
+    {
+        std::cout << "buf_size = " << buf_size << std::endl;
+        std::cout << "data_size = " << data_size << std::endl;
+
+        // Resize vectors to specified sizes
+        src_A.resize(buf_size/data_size);
+        src_B.resize(buf_size/data_size);
+        refs.resize(buf_size/data_size);
+        std::cout << "Inside constructor" <<std::endl;
+        A_mat = (TYPE*)calloc(buf_size/data_size,sizeof(TYPE));
+        B_mat = (TYPE*)calloc(buf_size/data_size,sizeof(TYPE));
+    }
+
+  void init_inputs ()
+  {
+    std::cout << "inside init" << std::endl;
+    for (uint32_t i = 0; i < matrix_size*matrix_size; ++i) 
+    {
+      auto a = static_cast<float>(std::rand()) / RAND_MAX;
+      auto b = static_cast<float>(std::rand()) / RAND_MAX;
+      src_A[i] = static_cast<TYPE>(a * matrix_size);
+      src_B[i] = static_cast<TYPE>(b * matrix_size);
+      std::cout << "src_A[" << i<< "] = " << src_A[i] << std::endl;
+      std::cout << "src_B[" << i<< "] = " << src_B[i] << std::endl;
+    }
+  }
+
+  void matmul_cpu() 
+  {
+    for (uint32_t row = 0; row < matrix_size; ++row) 
+    {
+      for (uint32_t col = 0; col < matrix_size; ++col) 
+      {
+        TYPE sum(0);
+        for (uint32_t e = 0; e < matrix_size; ++e) {
+            sum += src_A[row * matrix_size + e] * src_B[e * matrix_size + col];
+        }
+        refs[row * matrix_size + col] = sum;
+      }
+    }
+  }
+
+  //Public variables
+  std::vector<TYPE> src_A;
+  std::vector<TYPE> src_B;
+  std::vector<TYPE> refs;
+
+  TYPE* A_mat;
+  TYPE* B_mat;
+
+  private:
+    uint32_t buf_size;
+    uint32_t data_size;
+    uint32_t matrix_size;
+};
+
+
+
 int main(int argc, char *argv[]) {  
   // parse command arguments
-  parse_args(argc, argv);
+  uint32_t data_size = 0;
+  parse_args(argc, argv, data_size);
   if (matrix_size == 0) {
     matrix_size = 2;
   }
@@ -168,7 +223,8 @@ int main(int argc, char *argv[]) {
   uint32_t num_tasks  = ((matrix_size*matrix_size)/(tc_size*tc_size))*threads_per_tc;
   
   //size of each operand
-  uint32_t buf_size   =  ((matrix_size*matrix_size)/(tc_size*tc_size))*(matrix_size/(tc_size))*(tc_size*tc_size)*4;
+  std::cout << "DEBUG: Data Size: " << data_size << std::endl;
+  uint32_t buf_size   =  ((matrix_size*matrix_size)/(tc_size*tc_size))*(matrix_size/(tc_size))*(tc_size*tc_size)*data_size;
 
   //256
   std::cout << "buffer size: " << buf_size << " bytes" << std::endl;
@@ -185,6 +241,9 @@ int main(int argc, char *argv[]) {
   RT_CHECK(vx_mem_alloc(device, buf_size, VX_MEM_TYPE_GLOBAL, &kernel_arg.src1_addr));
   RT_CHECK(vx_mem_alloc(device, buf_size, VX_MEM_TYPE_GLOBAL, &kernel_arg.dst_addr));
 
+  mainVariables<int> variables (buf_size, data_size, matrix_size);
+  variables.init_inputs();
+
   //1
   std::cout << "num_tasks = " << num_tasks << std::endl;
   kernel_arg.num_tasks = num_tasks;
@@ -193,6 +252,7 @@ int main(int argc, char *argv[]) {
   kernel_arg.TC_per_warp = TC_per_warp;
   //1
   kernel_arg.matrix_size = matrix_size;
+  kernel_arg.data_size = data_size;
   kernel_arg.tc_size = tc_size;
 
   uint32_t offset = (matrix_size*matrix_size)/(tc_size*tc_size) * (matrix_size/tc_size) * (tc_size*tc_size) * 4;
@@ -220,30 +280,7 @@ int main(int argc, char *argv[]) {
   uint32_t n_tiles = matrix_size/tc_size;
   
   // generate source data
-  std::vector<int> src_A(buf_size/4);
-  std::vector<int> src_B(buf_size/4);
-  std::vector<int> refs(buf_size/4);
-  for (uint32_t i = 0; i < matrix_size*matrix_size; ++i) {
-    auto a = static_cast<float>(std::rand()) / RAND_MAX;
-    auto b = static_cast<float>(std::rand()) / RAND_MAX;
-    src_A[i] = static_cast<int>(a * matrix_size);
-    src_B[i] = static_cast<int>(b * matrix_size);
-  }
-
-  for(int i; i< matrix_size*matrix_size; i++)
-  {
-    std::cout << "src_A[" << i<< "] = " << src_A[i] << std::endl;
-  }
-  
-  for(int i; i< matrix_size*matrix_size; i++)
-  {
-    std::cout << "src_B[" << i<< "] = " << src_B[i] << std::endl;
-  }
-
-  matmul_cpu(refs.data(), src_A.data(), src_B.data(), matrix_size, matrix_size);
-
-  int* A_mat = (int*)calloc(buf_size/4,sizeof(int));
-  int* B_mat = (int*)calloc(buf_size/4,sizeof(int));
+  variables.matmul_cpu();
 
   //Demand matrix creation for A
     //traverse through the rows
@@ -258,7 +295,7 @@ int main(int argc, char *argv[]) {
         {
           for(int t=0; t < tc_size*tc_size; t++)
           { 
-            A_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j + t]   = src_A[k*tc_size*matrix_size+ tc_size*j +(t/tc_size)*matrix_size + t%tc_size];
+            variables.A_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j + t]   = variables.src_A[k*TC_SIZE*matrix_size+ TC_SIZE*j +(t/TC_SIZE)*matrix_size + t%TC_SIZE];
           }
         }
     }
@@ -276,7 +313,7 @@ int main(int argc, char *argv[]) {
       {
         for(int t=0; t < tc_size*tc_size; t++)
         {
-          B_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j + t]   = src_B[i*tc_size+ tc_size*matrix_size*j +(t/tc_size)*matrix_size + t%tc_size];
+          variables.B_mat[n_tiles*n_tiles*tc_size_f*k + n_tiles*tc_size_f*i+tc_size_f*j + t]   = variables.src_B[i*TC_SIZE+ TC_SIZE*matrix_size*j +(t/TC_SIZE)*matrix_size + t%TC_SIZE];
         }
       }
     }
@@ -288,13 +325,13 @@ int main(int argc, char *argv[]) {
     std::cout << "upload source buffer0" << std::endl;
     auto buf_ptr = (int32_t*)staging_buf.data();
     
-    for (uint32_t i = 0; i < buf_size/4; i+=4) {
-      buf_ptr[i+0] = A_mat[i];
-      buf_ptr[i+1] = A_mat[i+1];
-      buf_ptr[i+2] = A_mat[i+2];
-      buf_ptr[i+3] = A_mat[i+3];
-    }  
-    
+    for (uint32_t i = 0; i < buf_size/data_size; i+=data_size) 
+    {
+      buf_ptr[i+0] = variables.A_mat[i];
+      buf_ptr[i+1] = variables.A_mat[i+1];
+      buf_ptr[i+2] = variables.A_mat[i+2];
+      buf_ptr[i+3] = variables.A_mat[i+3];
+    }
     RT_CHECK(vx_copy_to_dev(device, kernel_arg.src0_addr, staging_buf.data(), buf_size));
   }
 
@@ -302,11 +339,11 @@ int main(int argc, char *argv[]) {
   {
     std::cout << "upload source buffer1" << std::endl;
     auto buf_ptr = (int32_t*)staging_buf.data();
-    for (uint32_t i = 0; i < buf_size/4; i+=4) {
-      buf_ptr[i+0] = B_mat[i];
-      buf_ptr[i+1] = B_mat[i+1];
-      buf_ptr[i+2] = B_mat[i+2];
-      buf_ptr[i+3] = B_mat[i+3];
+    for (uint32_t i = 0; i < buf_size/data_size; i+=data_size) {
+      buf_ptr[i+0] = variables.B_mat[i];
+      buf_ptr[i+1] = variables.B_mat[i+1];
+      buf_ptr[i+2] = variables.B_mat[i+2];
+      buf_ptr[i+3] = variables.B_mat[i+3];
     }  
     RT_CHECK(vx_copy_to_dev(device, kernel_arg.src1_addr, staging_buf.data(), buf_size));
   }
@@ -316,7 +353,7 @@ int main(int argc, char *argv[]) {
   {
     std::cout << "clear destination buffer" << std::endl;      
     auto buf_ptr = (int32_t*)staging_buf.data();
-    for (uint32_t i = 0; i < buf_size/4; ++i) {
+    for (uint32_t i = 0; i < buf_size/data_size; ++i) {
       buf_ptr[i] = 0xdeadbeef;
     }  
     RT_CHECK(vx_copy_to_dev(device, kernel_arg.dst_addr, staging_buf.data(), buf_size));  
@@ -325,8 +362,8 @@ int main(int argc, char *argv[]) {
 
   // run tests
   std::cout << "run tests" << std::endl;
-  RT_CHECK(run_test(kernel_arg, buf_size, refs));
-
+  RT_CHECK(run_test(kernel_arg, buf_size, variables.refs));
+  
   // cleanup
   std::cout << "cleanup" << std::endl;  
   cleanup();

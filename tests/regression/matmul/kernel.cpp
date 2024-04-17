@@ -72,9 +72,9 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	//unsigned c_addr_base = c_addr + (((task_id*matrix_size)/arg->num_tasks)*4) ; //Fix this
 	if (((task_id%num_tasks_per_warp)/num_tasks_per_thread) < xyz)
 	{	
-		unsigned a_addr_base = a_addr + offset*4;
-		unsigned b_addr_base = b_addr + offset*4;
-		unsigned c_addr_base = c_addr + offset_c*4;
+		unsigned a_addr_base = a_addr + offset*arg->data_size;
+		unsigned b_addr_base = b_addr + offset*arg->data_size;
+		unsigned c_addr_base = c_addr + offset_c*arg->data_size;
 		csr_write(VX_MAT_MUL_SIZE,n_tiles);
 		mload (0, a_addr_base);
 		mload (1, b_addr_base);

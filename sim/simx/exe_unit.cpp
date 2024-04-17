@@ -225,8 +225,9 @@ void LsuUnit::tick() {
         
         //Assumption : each load = 4B
         //size for all threads are equal {size = num_data_per_thread*4 ; passed from execute.cpp}
+        // All mem req are assumed to be 4B
         uint16_t req_per_thread = (trace_data->mem_addrs.at(0 + t0).size)/4;
-
+        uint32_t mem_bytes = 4;
 
         if ((trace->lsu_type == LsuType::TCU_LOAD) || (trace->lsu_type == LsuType::TCU_STORE))
         {
@@ -248,7 +249,7 @@ void LsuUnit::tick() {
                 {
                     MemReq mem_req;
                     //TODO - address needs to be fixed
-                    mem_req.addr  = mem_addr.addr + i*4;
+                    mem_req.addr  = mem_addr.addr + i*mem_bytes;
                     mem_req.write = is_write;
                     mem_req.type  = type; 
                     mem_req.tag   = tag;
