@@ -20,6 +20,12 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	uint32_t matrix_size = arg->matrix_size;
 	
 	int n_tiles = matrix_size/tc_size;
+	
+	vx_printf("ABC\n");
+	vx_printf("DEBUG :: n_tiles = %d\n", n_tiles);
+	
+	vx_printf("DEBUG :: tc_size = %d\n", tc_size);
+
 	int num_output_tiles = (matrix_size*matrix_size)/(tc_size*tc_size);
 	
 	int num_tasks = arg->num_tasks;
@@ -72,6 +78,8 @@ void kernel_body(int task_id, kernel_arg_t* __UNIFORM__ arg) {
 	//unsigned c_addr_base = c_addr + (((task_id*matrix_size)/arg->num_tasks)*4) ; //Fix this
 	if (((task_id%num_tasks_per_warp)/num_tasks_per_thread) < xyz)
 	{	
+		offset = 0;
+		offset_c = 0;
 		unsigned a_addr_base = a_addr + offset*arg->data_size;
 		unsigned b_addr_base = b_addr + offset*arg->data_size;
 		unsigned c_addr_base = c_addr + offset_c*arg->data_size;

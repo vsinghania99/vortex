@@ -224,8 +224,8 @@ int main(int argc, char *argv[]) {
   
   //size of each operand
   std::cout << "DEBUG: Data Size: " << data_size << std::endl;
-  uint32_t buf_size   =  ((matrix_size*matrix_size)/(tc_size*tc_size))*(matrix_size/(tc_size))*(tc_size*tc_size)*data_size;
-
+  //uint32_t buf_size   =  ((matrix_size*matrix_size)/(tc_size*tc_size))*(matrix_size/(tc_size))*(tc_size*tc_size)*data_size;
+  uint32_t buf_size   =  (matrix_size*matrix_size)*4;
   //256
   std::cout << "buffer size: " << buf_size << " bytes" << std::endl;
 
@@ -255,7 +255,8 @@ int main(int argc, char *argv[]) {
   kernel_arg.data_size = data_size;
   kernel_arg.tc_size = tc_size;
 
-  uint32_t offset = (matrix_size*matrix_size)/(tc_size*tc_size) * (matrix_size/tc_size) * (tc_size*tc_size) * 4;
+  //uint32_t offset = (matrix_size*matrix_size)/(tc_size*tc_size) * (matrix_size/tc_size) * (tc_size*tc_size) * 4;
+  uint32_t offset = (matrix_size*matrix_size)* 4;
   //TODO - does this need to be fixed?
   uint32_t base_addr = 0x40;
   kernel_arg.src0_addr = base_addr;  
@@ -284,6 +285,7 @@ int main(int argc, char *argv[]) {
 
   //Demand matrix creation for A
     //traverse through the rows
+  /*
   for(uint32_t k=0; k<n_tiles; k++)
   {
     //traverse through output tiles in a row
@@ -318,19 +320,22 @@ int main(int argc, char *argv[]) {
       }
     }
   }
-  
+  */
  // upload source buffer0
   {
     staging_buf.resize(buf_size);
     std::cout << "upload source buffer0" << std::endl;
     auto buf_ptr = (int32_t*)staging_buf.data();
     
-    for (uint32_t i = 0; i < buf_size/data_size; i+=data_size) 
+    /*for (uint32_t i = 0; i < buf_size/data_size; i+=data_size) 
     {
       buf_ptr[i+0] = variables.A_mat[i];
       buf_ptr[i+1] = variables.A_mat[i+1];
       buf_ptr[i+2] = variables.A_mat[i+2];
       buf_ptr[i+3] = variables.A_mat[i+3];
+    }*/
+    for (uint32_t i = 0; i < buf_size; i+=1) {
+      buf_ptr[i] = variables.src_A[i];
     }
     RT_CHECK(vx_copy_to_dev(device, kernel_arg.src0_addr, staging_buf.data(), buf_size));
   }
@@ -339,12 +344,15 @@ int main(int argc, char *argv[]) {
   {
     std::cout << "upload source buffer1" << std::endl;
     auto buf_ptr = (int32_t*)staging_buf.data();
-    for (uint32_t i = 0; i < buf_size/data_size; i+=data_size) {
+    /*for (uint32_t i = 0; i < buf_size/data_size; i+=data_size) {
       buf_ptr[i+0] = variables.B_mat[i];
       buf_ptr[i+1] = variables.B_mat[i+1];
       buf_ptr[i+2] = variables.B_mat[i+2];
       buf_ptr[i+3] = variables.B_mat[i+3];
-    }  
+    }  */
+    for (uint32_t i = 0; i < buf_size; i+=1) {
+      buf_ptr[i] = variables.src_B[i];
+    }
     RT_CHECK(vx_copy_to_dev(device, kernel_arg.src1_addr, staging_buf.data(), buf_size));
   }
 
