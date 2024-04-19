@@ -36,6 +36,7 @@ typedef void* vx_device_h;
 #define VX_CAPS_ISA_FLAGS           0x8
 #define VX_CAPS_TC_SIZE             0x9
 #define VX_CAPS_TC_NUM              0xA
+#define VX_CAPS_TC_PER_CORE         0xB
 
 // device isa flags
 #define VX_ISA_STD_A                (1ull << 0)

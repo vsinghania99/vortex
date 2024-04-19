@@ -147,18 +147,18 @@ int main(int argc, char *argv[]) {
   std::cout << "open device connection" << std::endl;  
   RT_CHECK(vx_dev_open(&device));
 
-  uint64_t num_cores, num_warps, num_threads, tc_size, TC_per_warp;
+  uint64_t num_cores, num_warps, num_threads, tc_size, TC_per_warp, TC_per_core;
   RT_CHECK(vx_dev_caps(device, VX_CAPS_NUM_CORES, &num_cores));
   RT_CHECK(vx_dev_caps(device, VX_CAPS_NUM_WARPS, &num_warps));
   RT_CHECK(vx_dev_caps(device, VX_CAPS_NUM_THREADS, &num_threads));
   RT_CHECK(vx_dev_caps(device, VX_CAPS_TC_SIZE, &tc_size));
   RT_CHECK(vx_dev_caps(device, VX_CAPS_TC_NUM, &TC_per_warp));
+  RT_CHECK(vx_dev_caps(device, VX_CAPS_TC_PER_CORE, &TC_per_core));
   
   std::cout << "D :: tc_size = " << tc_size << std::endl;
   std::cout << "D :: TC_per_warp = " << TC_per_warp << std::endl;
   
   //TODO - can be changed
-  uint32_t TC_per_core = 2;
   uint32_t num_tasks  = (matrix_size*matrix_size)/(TC_SIZE*TC_SIZE)*(num_warps/TC_per_core);
 
   //size of each operand

@@ -40,6 +40,7 @@ WARPS=4
 THREADS=4
 TC_SIZE=567
 TC_NUM=123
+TC_PER_CORE=1
 L2=
 L3=
 DEBUG=0
@@ -84,6 +85,10 @@ case $i in
         ;;
     --tc_num=*)
         TC_NUM=${i#*=}
+        shift
+        ;;
+    --tc_per_core=*)
+        TC_PER_CORE=${i#*=}
         shift
         ;;
     --l2cache)
@@ -169,7 +174,7 @@ else
     exit -1
 fi
 
-CONFIGS="-DNUM_CLUSTERS=$CLUSTERS -DNUM_CORES=$CORES -DNUM_WARPS=$WARPS -DNUM_THREADS=$THREADS -DTC_NUM=$TC_NUM -DTC_SIZE=$TC_SIZE $L2 $L3 $PERF_FLAG $CONFIGS"
+CONFIGS="-DNUM_CLUSTERS=$CLUSTERS -DNUM_CORES=$CORES -DNUM_WARPS=$WARPS -DNUM_THREADS=$THREADS -DTC_NUM=$TC_NUM -DTC_SIZE=$TC_SIZE -DTC_PER_CORE=$TC_PER_CORE $L2 $L3 $PERF_FLAG $CONFIGS"
 
 echo "CONFIGS=$CONFIGS"
 

@@ -2352,11 +2352,7 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
     
     DP(3, "Num Tiles=" << n_tiles << std::endl);
 
-  
-    uint32_t data_bytes_load = mem_bytes*num_data_per_thread*n_tiles;
-    uint32_t data_bytes_store = (mem_bytes*num_data_per_thread);
-
-    uint32_t TC_per_core = 2;
+    uint32_t TC_per_core = core_->arch().TC_per_core();
     uint32_t num_warp_per_tc = MAX(1,num_warps/TC_per_core); 
 
     DP(3, "Num Tiles=" << n_tiles << std::endl);
@@ -2438,9 +2434,9 @@ void Warp::execute(const Instr &instr, pipeline_trace_t *trace) {
               uint32_t scratchpad_index = (tc_size*tc_size*2) + (t*num_data_per_thread) + n;
               
               //scratchpad -> csr (TODO :: can intermediate step of moving to CSR be skipped?)
-              core_->set_csr(csr_addr[(2*num_data_per_thread) + n], core_->scratchpad[ warp_offset + (n_tiles*tc_size*tc_size*2) + (t*num_data_per_thread) + n], t, warp_id_);
+              //core_->set_csr(csr_addr[(2*num_data_per_thread) + n], core_->scratchpad[ warp_offset + (n_tiles*tc_size*tc_size*2) + (t*num_data_per_thread) + n], t, warp_id_);
               Word* temp_ref = &(ireg_file_.at(t).at(rsrc0));
-              *temp_ref = core_->get_csr(csr_addr[(num_data_per_thread*2) + n], t, warp_id_);
+              *temp_ref = core_->scratchpad[ warp_offset + (n_tiles*tc_size*tc_size*2) + (t*num_data_per_thread) + n];
               core_->dcache_write(temp_ref, base_addr+(n*mem_bytes), mem_bytes);  
             }
           }

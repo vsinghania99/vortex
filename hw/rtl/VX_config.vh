@@ -107,6 +107,10 @@
 `define TC_NUM 1
 `endif
 
+`ifndef TC_PER_CORE
+`define TC_PER_CORE 1
+`endif
+
 `ifdef L2_ENABLE
     `define L2_ENABLED   1
 `else

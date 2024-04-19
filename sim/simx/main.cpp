@@ -36,6 +36,7 @@ uint32_t num_warps = NUM_WARPS;
 uint32_t num_cores = NUM_CORES;
 uint32_t tc_size = TC_SIZE;
 uint32_t  tc_num = TC_NUM;
+uint32_t TC_per_core = TC_PER_CORE;
 bool showStats = false;
 bool riscv_test = false;
 const char* program = nullptr;
@@ -86,7 +87,7 @@ int main(int argc, char **argv) {
 
   {
     // create processor configuation
-    Arch arch(num_threads, num_warps, num_cores, tc_size, tc_num);
+    Arch arch(num_threads, num_warps, num_cores, tc_size, tc_num, TC_per_core);
 
     // create memory module
     RAM ram(RAM_PAGE_SIZE);
