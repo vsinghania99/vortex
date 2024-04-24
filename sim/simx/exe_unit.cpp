@@ -227,7 +227,7 @@ void LsuUnit::tick() {
         //size for all threads are equal {size = num_data_per_thread*4 ; passed from execute.cpp}
         // All mem req are assumed to be 4B
         uint16_t req_per_thread = (trace_data->mem_addrs.at(0 + t0).size)/4;
-        uint32_t mem_bytes = 4;
+        uint32_t mem_bytes = 1;
 
         if ((trace->lsu_type == LsuType::TCU_LOAD) || (trace->lsu_type == LsuType::TCU_STORE))
         {

@@ -85,7 +85,7 @@ int run_test(const kernel_arg_t& kernel_arg,
   std::cout << "verify result" << std::endl;  
   {
     int errors = 0;
-    auto buf_ptr = (int32_t*)staging_buf.data();
+    auto buf_ptr = (int8_t*)staging_buf.data();
     uint64_t tc_size = kernel_arg.tc_size;
     std::cout << "tc_size = " << tc_size << std::endl;
     int Result[matrix_size*matrix_size];
@@ -323,7 +323,7 @@ int main(int argc, char *argv[]) {
   {
     staging_buf.resize(buf_size);
     std::cout << "upload source buffer0" << std::endl;
-    auto buf_ptr = (int32_t*)staging_buf.data();
+    auto buf_ptr = (int8_t*)staging_buf.data();
     
     for (uint32_t i = 0; i < buf_size/data_size; i+=data_size) 
     {
@@ -338,7 +338,7 @@ int main(int argc, char *argv[]) {
   // upload source buffer1
   {
     std::cout << "upload source buffer1" << std::endl;
-    auto buf_ptr = (int32_t*)staging_buf.data();
+    auto buf_ptr = (int8_t*)staging_buf.data();
     for (uint32_t i = 0; i < buf_size/data_size; i+=data_size) {
       buf_ptr[i+0] = variables.B_mat[i];
       buf_ptr[i+1] = variables.B_mat[i+1];
@@ -352,7 +352,7 @@ int main(int argc, char *argv[]) {
   //TODO - what is this?
   {
     std::cout << "clear destination buffer" << std::endl;      
-    auto buf_ptr = (int32_t*)staging_buf.data();
+    auto buf_ptr = (int8_t*)staging_buf.data();
     for (uint32_t i = 0; i < buf_size/data_size; ++i) {
       buf_ptr[i] = 0xdeadbeef;
     }  
